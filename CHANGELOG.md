@@ -2,6 +2,10 @@
 
 All notable changes to Karbone are documented here. Detailed notes for each release live in `release-notes/`.
 
+## Unreleased (0.1.3)
+
+- `Karbone.baseUrl` and `Karbone.apiVersion` read-only accessors (log-safe), replacing the removed `config` property.
+
 ## 0.1.2 — 2026-09-15
 
 - Blocking facade over `KarboneClient`: `KarboneClient.blocking()` and `KarboneBlocking.of(client)`, so `FakeKarbone` fits behind it.

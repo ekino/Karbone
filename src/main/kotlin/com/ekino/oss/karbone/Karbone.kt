@@ -28,6 +28,12 @@ public class Karbone internal constructor(config: KarboneConfig, transport: Http
 
   private val calls = Calls(config, transport)
 
+  /** Base URL this client talks to, without trailing slash. Safe to log. */
+  public val baseUrl: String = config.normalizedBaseUrl
+
+  /** `carbone-version` header sent by this client, `null` on-premise. Safe to log. */
+  public val apiVersion: Int? = config.apiVersion
+
   override val templates: Templates = DefaultTemplates(calls)
   override val renders: Renders = DefaultRenders(calls, templates)
 

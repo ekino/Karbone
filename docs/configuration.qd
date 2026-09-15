@@ -56,6 +56,15 @@ karbone.renders.render(template, data) {
 }
 ```
 
+## Reading a client's settings
+
+`Karbone` does not expose its `KarboneConfig`: the token stays private and the configuration is a construction detail. Two read-only
+values are available because they are useful in startup logs and health checks:
+
+```kotlin
+logger.info { "Carbone at ${karbone.baseUrl} (api version ${karbone.apiVersion ?: "server default"})" }
+```
+
 ## Logging
 
 Karbone logs through kotlin-logging under the `com.ekino.oss.karbone` logger names and stays silent at `INFO` and above in the

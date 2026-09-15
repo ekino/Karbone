@@ -27,6 +27,7 @@ import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -469,6 +470,15 @@ class KarboneStubServerSpec :
           listOf("Sales", "HR")
         tags.shouldBeInstanceOf<Either.Right<List<String>>>().value shouldBe listOf("invoice")
       }
+    }
+
+    should("expose baseUrl and apiVersion, and nothing else from the configuration") {
+      val cloud = Karbone.cloud("secret-key") { baseUrl("https://carbone.example.com/") }
+      cloud.baseUrl shouldBe "https://carbone.example.com"
+      cloud.apiVersion shouldBe 5
+      val onPremise = Karbone.onPremise("http://localhost:4000", token = "jwt")
+      onPremise.apiVersion.shouldBeNull()
+      Karbone::class.members.map { it.name } shouldNotContain "config"
     }
 
     should("map a connection failure to KarboneError.Transport") {
