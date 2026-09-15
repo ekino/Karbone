@@ -75,3 +75,10 @@ Chosen: `KarboneBlocking` / `TemplatesBlocking` / `RendersBlocking` take a `Karb
 `FakeKarbone` in the same facade instead of re-implementing `runBlocking { either { } }` → `KarboneException` (what the primary consumer app does today).
 Rejected: a default `blocking()` method on the `KarboneClient` interface — it would make the core interface depend on the blocking package and
 force every implementation (fakes included) to know about it; the extension keeps `KarboneClient` minimal and is discoverable through the package import.
+
+## 2026-09-15 — Compile against the coroutines version managed by Spring Boot
+Chosen: `kotlinx-coroutines` 1.10.2 in the version catalog (Spring Boot 4.1 `kotlin-coroutines.version`), even though 1.11.0 exists.
+Reason: the first consumer (Spring Boot 4.1.1) got `NoSuchMethodError` on `runBlockingK$default`, a 1.11-only overload the Kotlin 2.4 compiler
+targets; the BOM downgraded the runtime to 1.10.2 under a library compiled against 1.11. Rule: a library depends on the *oldest* version its
+consumers will have. Same rule applies to kotlinx-serialization (1.11.0, matches Spring Boot). Bump only when Spring Boot does.
+Rejected: telling consumers to override `kotlin-coroutines.version` — works (that is the workaround used) but pushes the problem onto every consumer.

@@ -54,6 +54,22 @@ karbone.renders.render(template, data) {
 }
 ```
 
+## Spring Boot compatibility
+
+Spring Boot's dependency management pins `kotlinx-coroutines` (1.10.2 in Spring Boot 4.1) and `kotlinx-serialization` (1.11.0).
+Karbone is compiled against exactly those versions, so the artifact resolved by the BOM is the one Karbone was built with.
+
+Why it matters: a library compiled against coroutines 1.11 references `runBlockingK`, an overload that does not exist in 1.10.2. If the
+BOM downgrades the runtime, the blocking facade fails with `NoSuchMethodError` at the first call. This bit the first consumer of
+Karbone 0.1.2. If you need a newer coroutines line anyway, override the managed version for the whole project:
+
+```kotlin
+// build.gradle.kts
+extra["kotlin-coroutines.version"] = "1.11.0"
+```
+
+Arrow (`arrow-core`) and kotlin-logging are not managed by Spring Boot; Karbone brings its own versions.
+
 ## Reading a client's settings
 
 `Karbone` does not expose its `KarboneConfig`: the token stays private and the configuration is a construction detail. Two read-only

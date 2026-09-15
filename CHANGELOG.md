@@ -5,6 +5,7 @@ All notable changes to Karbone are documented here. Detailed notes for each rele
 ## Unreleased (0.1.3)
 
 - `Karbone.baseUrl` and `Karbone.apiVersion` read-only accessors (log-safe), replacing the removed `config` property.
+- Compiled against kotlinx-coroutines 1.10.2 (Spring Boot 4.x managed version) to avoid `NoSuchMethodError` on `runBlocking` when the BOM downgrades the runtime.
 
 ## 0.1.2 — 2026-09-15
 
