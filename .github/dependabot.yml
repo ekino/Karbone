@@ -1,4 +1,4 @@
-# Dependabot configuration for Karbon
+# Dependabot configuration for Karbone
 # Updates gradle/libs.versions.toml and GitHub Actions weekly.
 
 version: 2

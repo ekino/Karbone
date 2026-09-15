@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - "v*" # v1.0.0 publishes com.ekino.oss:karbon:1.0.0
+      - "v*" # v1.0.0 publishes com.ekino.oss:karbone:1.0.0
 
 permissions:
   contents: write
@@ -46,7 +46,7 @@ jobs:
           VERSION="${TAG_NAME#v}"
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "artifact_version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing com.ekino.oss:karbon:$VERSION"
+          echo "Publishing com.ekino.oss:karbone:$VERSION"
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew

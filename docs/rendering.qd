@@ -3,7 +3,7 @@
 
 # Rendering
 
-Everything document-generation related lives on `karbon.renders`, an implementation of the `Renders` interface.
+Everything document-generation related lives on `karbone.renders`, an implementation of the `Renders` interface.
 
 ## Template sources
 
@@ -25,13 +25,13 @@ three in the same path segment.
 
 Rendering from a `Content` source never requires uploading it up front:
 
-1. Karbon computes the SHA-256 of the content and calls `POST /render/{sha256}` directly.
-2. If Carbone already has a template with that hash (because it was uploaded before, by Karbon or anyone else), the render
+1. Karbone computes the SHA-256 of the content and calls `POST /render/{sha256}` directly.
+2. If Carbone already has a template with that hash (because it was uploaded before, by Karbone or anyone else), the render
    succeeds in one round-trip.
-3. If Carbone answers 404, Karbon uploads the content with `templates.upload(...)` and retries the render exactly once.
+3. If Carbone answers 404, Karbone uploads the content with `templates.upload(...)` and retries the render exactly once.
 
 This only applies to legacy (non-versioned) template ids: a `TemplateSource.Remote` id is used as-is and a 404 on it is raised
-as `KarbonError.TemplateNotFound`, never retried.
+as `KarboneError.TemplateNotFound`, never retried.
 
 ## Render data
 
@@ -40,12 +40,12 @@ as `KarbonError.TemplateNotFound`, never retried.
 ```kotlin
 RenderData.raw("""{"number":"F-1"}""")            // pre-serialized JSON, e.g. from Jackson or Gson
 RenderData.of(jsonElement)                        // a kotlinx.serialization JsonElement
-RenderData.of(myDataClass)                        // any @Serializable value, encoded by Karbon
+RenderData.of(myDataClass)                        // any @Serializable value, encoded by Karbone
 RenderData.Empty                                  // {} — tags resolve to empty
 ```
 
-`RenderData.Raw` is meant for callers who already produce JSON with another library; Karbon sends it through unmodified.
-`RenderData.of(value)` requires `value`'s type to be `@Serializable` and uses Karbon's configured `Json` (see
+`RenderData.Raw` is meant for callers who already produce JSON with another library; Karbone sends it through unmodified.
+`RenderData.of(value)` requires `value`'s type to be `@Serializable` and uses Karbone's configured `Json` (see
 [Configuration](configuration.qd)) to encode it.
 
 ## Render options
@@ -102,14 +102,14 @@ Option groups:
 
 ```kotlin
 // one round trip, bytes come back directly
-val doc = karbon.renders.render(template, data, options)
+val doc = karbone.renders.render(template, data, options)
 
 // two-step: get a RenderId, fetch the file later (no auth needed on download)
-val id = karbon.renders.start(template, data, options)
-val doc = karbon.renders.download(id)
+val id = karbone.renders.start(template, data, options)
+val doc = karbone.renders.download(id)
 
 // asynchronous: Carbone calls the webhook with {success, data: {renderId}} when done
-karbon.renders.startAsync(template, data, Webhook("https://example.com/callback"), options)
+karbone.renders.startAsync(template, data, Webhook("https://example.com/callback"), options)
 ```
 
 `render` calls `POST /render/{id}?download=true` and returns the file directly. `start` calls the same endpoint with
@@ -123,9 +123,9 @@ file is kept for one hour and served once). `startAsync` is required for `batch`
 format changes.
 
 ```kotlin
-val pdf = karbon.renders.convert(TemplateSource.bytes(docxBytes), OutputFormat.PDF)
+val pdf = karbone.renders.convert(TemplateSource.bytes(docxBytes), OutputFormat.PDF)
 ```
 
 Per the v5 API, omitting `data` for a conversion skips templating entirely. Some servers still behave like v4 and answer
-`422` (`"Missing data"`) when `data` is absent; Karbon detects that and retries once with `data: {}`, which is equivalent for
+`422` (`"Missing data"`) when `data` is absent; Karbone detects that and retries once with `data: {}`, which is equivalent for
 a document with no Carbone tags. This is transparent to callers.

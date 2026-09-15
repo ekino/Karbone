@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Karbon is a new Kotlin SDK for the [Carbone.io](https://carbone.io/) document-generation API, meant to replace the official
-[carbone-sdk-java](https://github.com/carboneio/carbone-sdk-java), which is incomplete and dated. Published as `com.ekino.oss:karbon`
-under the MIT license. Package root: `com.ekino.oss.karbon`.
+Karbone is a new Kotlin SDK for the [Carbone.io](https://carbone.io/) document-generation API, meant to replace the official
+[carbone-sdk-java](https://github.com/carboneio/carbone-sdk-java), which is incomplete and dated. Published as `com.ekino.oss:karbone`
+under the MIT license. Package root: `com.ekino.oss.karbone`.
 
 The build setup is deliberately copied from the sibling project `../Metalastic` (same author, same conventions). When in doubt about
 tooling, look there first.
@@ -27,20 +27,20 @@ tooling, look there first.
 
 ## Architecture
 
-- **Public API** (`com.ekino.oss.karbon`): `KarbonClient` interface (what consumers depend on), `Karbon` entry point (`cloud(...)`,
-  `onPremise(...)`, `create(config)`), `Templates` and `Renders` interfaces, `KarbonConfig`, `KarbonError` (sealed values) and
-  `KarbonException` (blocking facade only). Models live in `model/`. `testing/FakeKarbon` is the in-memory double shipped for consumer tests.
-- **Error style**: every I/O method is `context(_: Raise<KarbonError>) suspend fun`. Never throw for API or transport failures; `raise`
-  a `KarbonError` and keep the raw Carbone `error` text in `message`. Request invariants use `ensure { InvalidRequest(...) }`.
-  `blocking/KarbonBlocking` wraps calls in `either { }` and throws `KarbonException` for Java callers.
-- **Layers** (`internal/`): `Calls` (URL building, transport/IO error → `KarbonError.Transport`), `DefaultTemplates` / `DefaultRenders`
+- **Public API** (`com.ekino.oss.karbone`): `KarboneClient` interface (what consumers depend on), `Karbone` entry point (`cloud(...)`,
+  `onPremise(...)`, `create(config)`), `Templates` and `Renders` interfaces, `KarboneConfig`, `KarboneError` (sealed values) and
+  `KarboneException` (blocking facade only). Models live in `model/`. `testing/FakeKarbone` is the in-memory double shipped for consumer tests.
+- **Error style**: every I/O method is `context(_: Raise<KarboneError>) suspend fun`. Never throw for API or transport failures; `raise`
+  a `KarboneError` and keep the raw Carbone `error` text in `message`. Request invariants use `ensure { InvalidRequest(...) }`.
+  `blocking/KarboneBlocking` wraps calls in `either { }` and throws `KarboneException` for Java callers.
+- **Layers** (`internal/`): `Calls` (URL building, transport/IO error → `KarboneError.Transport`), `DefaultTemplates` / `DefaultRenders`
   (endpoint logic, hash-first render: try `POST /render/{sha256}`, on 404 upload then retry once), `http/` (`HttpTransport` = bytes
   in/out, `JdkHttpTransport` on `java.net.http` with multipart writer, auth, `carbone-version`, retry), `wire/` (`RenderBody` builds the
   JSON body with Carbone wire names such as `SelectPdfVersion`; `Responses` parses the `{success, data, error}` envelope, maps HTTP
-  status → `KarbonError.Api`, extracts filenames from `Content-Disposition`).
+  status → `KarboneError.Api`, extracts filenames from `Content-Disposition`).
 - Public models stay idiomatic (`PdfVersion.PDF_A_3`, `Watermark`...); wire names exist only in `wire/`. `explicitApi()` is on.
 - `RenderData.Raw` exists on purpose: consumers using Jackson (iperia-back) pass pre-serialized JSON.
-- `KarbonError.Api.code` carries Carbone's error code (e.g. `w117`). Versioned upload responses also contain a legacy `templateId`;
+- `KarboneError.Api.code` carries Carbone's error code (e.g. `w117`). Versioned upload responses also contain a legacy `templateId`;
   `parseUploaded` prefers `id`/`versionId`. In versioned mode `versionId` is not the plain SHA-256 of the file. Multipart `tags` must be
   a JSON array string, not repeated fields.
 - A malformed bearer makes carbone-ee answer HTTP 500 "Invalid JSON Web Token"; `Responses.apiError` maps that message to `Unauthorized`.
@@ -50,7 +50,7 @@ tooling, look there first.
 ## Testing
 
 Kotest 6 on JUnit Platform plus the `io.kotest` Gradle plugin (`libs.bundles.kotest.extended`: runner, assertions, property, kotlin-test; data-driven `withData` is built into the engine) plus MockK.
-Write specs as `ShouldSpec` classes named `*Spec` under `src/test/kotlin/com/ekino/oss/karbon`. Unit specs stub Carbone with the JDK
+Write specs as `ShouldSpec` classes named `*Spec` under `src/test/kotlin/com/ekino/oss/karbone`. Unit specs stub Carbone with the JDK
 `com.sun.net.httpserver.HttpServer` (no WireMock). `integration/CarboneContainerSpec` runs against `carbone/carbone-ee:full-5.8.0-fonts`
 through Testcontainers and is skipped automatically when Docker is unavailable; `integration/CarboneAuthContainerSpec` does the same with
 `CARBONE_AUTHENTICATION=true` using the test key pair in `src/test/resources/auth/` (ES512 JWT, claims `iss=carbone-user`, `aud=carbone-ee`);
@@ -89,7 +89,7 @@ recreate durable, cross-branch lessons here — those go to memory.
 Docs live in `docs/` and are built with [Quarkdown](https://quarkdown.com/) 2.6.0 using its `docs` library, not Writerside/VitePress
 like Metalastic. Layout: `_setup.qd` (theme, shared setup, auto-included), `_nav.qd` (left sidebar links), `main.qd` (home + entry
 point), one `.qd` per page starting with `.docname {..}` then `.include {docs}`. A page becomes a subdocument only when linked from
-`_nav.qd` or another page. `docs/public/` is copied verbatim to the output root (CNAME etc.). Output lands in `build/docs/Karbon`
+`_nav.qd` or another page. `docs/public/` is copied verbatim to the output root (CNAME etc.). Output lands in `build/docs/Karbone`
 (directory named after `.docname`), deployed to GitHub Pages by `deploy-docs.yml` on pushes to `main`. Quarkdown is not a Gradle task;
 install it locally (`brew install quarkdown-labs/quarkdown/quarkdown`) and run:
 
@@ -105,8 +105,8 @@ quarkdown c docs/main.qd -p -w                     # live preview with reload
 ./gradlew build                  # compile, detekt, spotlessCheck, tests
 ./gradlew test                   # all tests (JUnit Platform, used by `check`)
 ./gradlew kotest                 # all tests via the io.kotest plugin, with Kotest's own console reporter
-./gradlew test --tests "com.ekino.oss.karbon.KarbonSpec"                # one spec class
-./gradlew test --tests "com.ekino.oss.karbon.KarbonSpec" -Dkotest.filter.tests="should expose*"   # one test by name glob
+./gradlew test --tests "com.ekino.oss.karbone.KarboneSpec"                # one spec class
+./gradlew test --tests "com.ekino.oss.karbone.KarboneSpec" -Dkotest.filter.tests="should expose*"   # one test by name glob
 ./gradlew detektMain             # static analysis only
 ./gradlew publishToMavenLocal    # local publication (vanniktech maven-publish)
 ```

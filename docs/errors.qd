@@ -3,14 +3,14 @@
 
 # Errors
 
-Karbon never throws for expected failure modes. Every SDK method is declared as
-`context(_: Raise<KarbonError>) suspend fun ...`, using [Arrow](https://arrow-kt.io/)'s `Raise` to make failure part of the
+Karbone never throws for expected failure modes. Every SDK method is declared as
+`context(_: Raise<KarboneError>) suspend fun ...`, using [Arrow](https://arrow-kt.io/)'s `Raise` to make failure part of the
 return type instead of an exception.
 
-Every `KarbonError.Api` also exposes `code`, Carbone's own error code when the response carries one. For example a *test* API key
+Every `KarboneError.Api` also exposes `code`, Carbone's own error code when the response carries one. For example a *test* API key
 may only produce PDF output: asking for DOCX yields `Unexpected(status=200, code="w117", message="With a test key, you can only convert in the following format (pdf)")`.
 
-## The `KarbonError` hierarchy
+## The `KarboneError` hierarchy
 
 | Type                       | When                                                                                   | Key fields                          |
 |----------------------------|-----------------------------------------------------------------------------------------|--------------------------------------|
@@ -28,19 +28,19 @@ may only produce PDF output: asking for DOCX yields `Unexpected(status=200, code
 | `TemplateRead`             | Local template content could not be read                                                | `source`, `cause`                     |
 
 `Unauthorized`, `TemplateNotFound`, `RenderNotFound`, `PayloadTooLarge`, `UnsupportedTemplateFormat`, `BadRequest`,
-`RenderFailed` and `Unexpected` all implement `KarbonError.Api`, which exposes `status` and `message` uniformly. **`message`
+`RenderFailed` and `Unexpected` all implement `KarboneError.Api`, which exposes `status` and `message` uniformly. **`message`
 is always the raw `error` text from the Carbone response, never rewritten or translated** — safe to log or surface as-is.
 
-Every `KarbonError` has a `describe(): String` for a human-readable summary, useful in logs.
+Every `KarboneError` has a `describe(): String` for a human-readable summary, useful in logs.
 
 ## Handling errors with `Raise`
 
-The idiomatic way to call Karbon is inside a `Raise<KarbonError>` scope, most simply Arrow's `either`:
+The idiomatic way to call Karbone is inside a `Raise<KarboneError>` scope, most simply Arrow's `either`:
 
 ```kotlin
 import arrow.core.raise.either
 
-val result = either { karbon.renders.render(template, data) } // Either<KarbonError, RenderedDocument>
+val result = either { karbone.renders.render(template, data) } // Either<KarboneError, RenderedDocument>
 
 result.fold(
   { error -> log.warn { "Render failed: ${error.describe()}" } },
@@ -53,7 +53,7 @@ result.fold(
 ```kotlin
 import arrow.core.raise.recover
 
-suspend fun statusOrUnknown(karbon: Karbon): ApiStatus = recover({ karbon.status() }) { error ->
+suspend fun statusOrUnknown(karbone: Karbone): ApiStatus = recover({ karbone.status() }) { error ->
   ApiStatus(success = false, code = null, message = error.describe(), version = null)
 }
 ```
@@ -64,28 +64,28 @@ suspend fun statusOrUnknown(karbon: Karbon): ApiStatus = recover({ karbon.status
 import arrow.core.raise.fold
 
 fold(
-  block = { karbon.templates.delete(id) },
+  block = { karbone.templates.delete(id) },
   recover = { error -> log.warn { error.describe() } },
   transform = { log.info { "Deleted $id" } },
 )
 ```
 
-Because `KarbonError` is `sealed`, you can also `when` on it exhaustively wherever that reads better than `Either` combinators.
+Because `KarboneError` is `sealed`, you can also `when` on it exhaustively wherever that reads better than `Either` combinators.
 
 ## The blocking facade
 
-`Karbon.blocking()` wraps every call with `either { ... }.fold(...)`, throwing `KarbonException` on the `Left` side:
+`Karbone.blocking()` wraps every call with `either { ... }.fold(...)`, throwing `KarboneException` on the `Left` side:
 
 ```kotlin
-public class KarbonException(public val error: KarbonError) : RuntimeException(...)
+public class KarboneException(public val error: KarboneError) : RuntimeException(...)
 ```
 
-`error` is the same `KarbonError` value that `Raise` would have raised; `getMessage()` is `error.describe()`. This is the
+`error` is the same `KarboneError` value that `Raise` would have raised; `getMessage()` is `error.describe()`. This is the
 facade to reach for from Java, or from any Kotlin code that has not adopted `Raise`.
 
 ## Malformed on-premise tokens
 
 `carbone-ee` answers a malformed bearer token with **HTTP 500** and an error message containing `"Invalid JSON Web Token"`,
-rather than a 401. Karbon detects that message and maps it to `KarbonError.Unauthorized` regardless of the HTTP status, so
+rather than a 401. Karbone detects that message and maps it to `KarboneError.Unauthorized` regardless of the HTTP status, so
 callers get a consistent `Unauthorized` for every authentication failure — missing token, forged token, or expired token —
 whatever status code the server happens to answer with.

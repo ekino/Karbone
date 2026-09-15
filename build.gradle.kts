@@ -110,7 +110,7 @@ spotless {
 mavenPublishing {
   coordinates(
     groupId = project.group.toString(),
-    artifactId = "karbon",
+    artifactId = "karbone",
     version = project.version.toString(),
   )
 
@@ -118,9 +118,9 @@ mavenPublishing {
   signAllPublications()
 
   pom {
-    name.set("Karbon")
+    name.set("Karbone")
     description.set("A modern Kotlin SDK for the Carbone.io document generation API")
-    url.set("https://github.com/ekino/Karbon")
+    url.set("https://github.com/ekino/Karbone")
 
     licenses {
       license {
@@ -140,9 +140,9 @@ mavenPublishing {
     }
 
     scm {
-      connection.set("scm:git:git://github.com/ekino/Karbon.git")
-      developerConnection.set("scm:git:ssh://github.com/ekino/Karbon.git")
-      url.set("https://github.com/ekino/Karbon")
+      connection.set("scm:git:git://github.com/ekino/Karbone.git")
+      developerConnection.set("scm:git:ssh://github.com/ekino/Karbone.git")
+      url.set("https://github.com/ekino/Karbone")
     }
   }
 }

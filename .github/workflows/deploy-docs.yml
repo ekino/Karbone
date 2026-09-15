@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           # Quarkdown nests the output under a directory named after .docname
-          path: build/docs/Karbon
+          path: build/docs/Karbone
 
   deploy:
     environment:

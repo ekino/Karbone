@@ -3,7 +3,7 @@
 
 # Templates
 
-`karbon.templates` manages templates stored on Carbone directly (`/template` and `/templates`). Most rendering does not need
+`karbone.templates` manages templates stored on Carbone directly (`/template` and `/templates`). Most rendering does not need
 this: see the hash-first flow in [Rendering](rendering.qd), which uploads on demand. Use `templates` when you want explicit
 control — versioning, metadata, categories, tags, or cleanup.
 
@@ -11,7 +11,7 @@ control — versioning, metadata, categories, tags, or cleanup.
 
 ```kotlin
 val uploaded =
-  karbon.templates.upload(
+  karbone.templates.upload(
     TemplateSource.file(Path.of("invoice.docx")),
     UploadOptions(name = "Invoice", category = "billing", tags = listOf("finance", "fr")),
   )
@@ -50,9 +50,9 @@ Any of the three — legacy id, versioned template id, or version id — can be 
 ## Download, update, delete
 
 ```kotlin
-val file = karbon.templates.download(id)          // TemplateFile: content, fileName, contentType
-val info = karbon.templates.update(id, TemplatePatch(name = "Invoice v2", tags = listOf("finance")))
-karbon.templates.delete(id)
+val file = karbone.templates.download(id)          // TemplateFile: content, fileName, contentType
+val info = karbone.templates.update(id, TemplatePatch(name = "Invoice v2", tags = listOf("finance")))
+karbone.templates.delete(id)
 ```
 
 `TemplatePatch` fields are all nullable and mean "leave unchanged" when `null`; set `expireAt = Instant.EPOCH` to cancel a
@@ -61,16 +61,16 @@ scheduled deletion.
 ## Listing
 
 ```kotlin
-val page: Page<TemplateInfo> = karbon.templates.list(ListTemplatesQuery(category = "billing", limit = 50))
+val page: Page<TemplateInfo> = karbone.templates.list(ListTemplatesQuery(category = "billing", limit = 50))
 // page.items, page.hasMore, page.nextCursor
 
-karbon.templates.listAll(ListTemplatesQuery(category = "billing")).collect { info ->
+karbone.templates.listAll(ListTemplatesQuery(category = "billing")).collect { info ->
   println(info.id)
 }
 ```
 
 `list` returns one `Page` (`GET /templates`); `listAll` returns a `Flow<TemplateInfo>` that follows `nextCursor` until
-`hasMore` is `false`, raising on the same `Raise<KarbonError>` used to collect it. `ListTemplatesQuery` filters by `id`,
+`hasMore` is `false`, raising on the same `Raise<KarboneError>` used to collect it. `ListTemplatesQuery` filters by `id`,
 `versionId`, `category`, `origin` (`TemplateOrigin`: `API`, `STUDIO`, `SALESFORCE`, `ODOO`, `HUBSPOT`), `includeVersions`, and
 free-text `search`, with `limit` capped at `ListTemplatesQuery.MAX_LIMIT` (100).
 
@@ -80,13 +80,13 @@ Template listing, like versioning, requires template management and may not be a
 ## Categories and tags
 
 ```kotlin
-val categories: List<String> = karbon.templates.categories()  // GET /templates/categories
-val tags: List<String> = karbon.templates.tags()               // GET /templates/tags
+val categories: List<String> = karbone.templates.categories()  // GET /templates/categories
+val tags: List<String> = karbone.templates.tags()               // GET /templates/tags
 ```
 
 ## Template identity
 
-A legacy template's id is deterministic: the SHA-256 hex digest of its bytes, computed the same way by Karbon
+A legacy template's id is deterministic: the SHA-256 hex digest of its bytes, computed the same way by Karbone
 (`TemplateSource.sha256Hex`) and by Carbone. Two uploads of byte-identical content get the same id. A versioned template's
 identity is split in two: a stable `id` for the template itself, and a `versionId` that changes with every new version
 (itself a content hash). Pick legacy ids for stateless, content-addressed templates; pick versioned ids when you need to

@@ -67,7 +67,7 @@ jobs:
             echo "    maven { url = uri(\"https://central.sonatype.com/repository/maven-snapshots/\") }"
             echo "}"
             echo "dependencies {"
-            echo "    implementation(\"com.ekino.oss:karbon:${{ steps.version.outputs.snapshot_version }}\")"
+            echo "    implementation(\"com.ekino.oss:karbone:${{ steps.version.outputs.snapshot_version }}\")"
             echo "}"
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
