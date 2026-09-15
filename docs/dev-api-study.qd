@@ -1,0 +1,85 @@
+.docname {Carbone API study}
+.include {docs}
+
+# Carbone API study
+
+> **Temporary development section.** These pages are the working notes that shaped Karbone, published as-is for the internal
+> review. They will be removed or rewritten before the public release; the reference is the code and the guides.
+
+
+Sources: `carbone.OpenAPI.yml` (kept in the working context, not published, spec version V5.9.1, downloaded from https://carbone.io/file/carbone.OpenAPI.yml),
+https://carbone.io/documentation/developer/http-api/*, carbone-sdk-node README, carbone-sdk-java v2.0.4 source.
+Facts marked **[spec]** were read directly in the OpenAPI file. Others come from doc pages via subagent and are marked **[doc]** or **[unverified]**.
+
+## Transport
+
+- Base URL cloud `https://api.carbone.io` [spec]; on-premise `http://host:port`, auth disabled by default [doc].
+- Auth: `Authorization: Bearer <api key>` on all endpoints except `GET /render/{renderId}` and `GET /status` [spec].
+- Header `carbone-version`: integer, latest **5**, **server default is 4 if absent**, "strongly recommended to always set it" [spec]. Values 3/4/5, plus `staging` [doc].
+- Response envelope: `{ success: boolean, data?: {...} }` on success, `{ success: false, error: string }` on error [spec]. `/status` also has `code`, `message`, `version` [spec].
+- Extra headers on render [spec]:
+  - `carbone-webhook-url`: async render, Carbone POSTs `{success, data:{renderId}}` to the URL when done.
+  - `carbone-webhook-header-<name>`: forwarded to the webhook call (e.g. `carbone-webhook-header-authorization`).
+  - `carbone-egress-header-authorization`: `authorization` header Carbone sends on all its outbound calls (max 512 chars).
+
+## Endpoints [spec]
+
+| Method | Path                                       | Purpose                                                                                                                                                                                                                                      |
+| ------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/template`                                | Upload a template (multipart preferred, or JSON base64). Metadata: `id`, `versioning`, `name`, `comment`, `category`, `tags[]`, `sample[]`, `expireAt`, `deployedAt`, `origin`. In multipart the `template` file must be the **last** field. |
+| GET    | `/template/{templateId-or-versionId}`      | Download template binary.                                                                                                                                                                                                                    |
+| PATCH  | `/template/{templateId-or-versionId}`      | Update metadata only (`id`, `name`, `comment`, `category`, `tags`, `expireAt`, `deployedAt`).                                                                                                                                                |
+| DELETE | `/template/{templateId-or-versionId}`      | `{success:true}`.                                                                                                                                                                                                                            |
+| GET    | `/templates`                               | List: query `id`, `versionId`, `category`, `origin`, `includeVersions`, `search`, `limit` (1-100, default 100), `cursor`. Returns `data[]`, `hasMore`, `nextCursor`.                                                                         |
+| GET    | `/templates/categories`, `/templates/tags` | `data: [{name}]`.                                                                                                                                                                                                                            |
+| POST   | `/render/{templateId-or-versionId}`        | Generate (or convert with `data: {}`). Query `download` (default false).                                                                                                                                                                     |
+| POST   | `/render/template`                         | Inline template (base64 `template` field in body) — also the generic document converter.                                                                                                                                                     |
+| GET    | `/render/{renderId}`                       | Download the generated file. No auth. Content-Disposition carries the filename (`reportName`). 404 once retrieved/deleted.                                                                                                                   |
+| GET    | `/status`                                  | `{success, code, message, version}`.                                                                                                                                                                                                         |
+
+### Template identity [spec]
+
+- Legacy (no `versioning` / false): response `data.templateId` = **SHA-256 of the file**. Deterministic: uploading the same bytes gives the same id. This is what SDKs use for the "hash locally, render, upload on 404, retry" flow.
+- Versioned (`versioning: true`): response `data.{id, versionId, type, size, createdAt, deployedAt}`. `id` = stable Template ID (renders resolve to the latest `deployedAt` version), `versionId` = SHA-256 of that version.
+
+### Render body [spec]
+
+`data` (object; omitted → conversion only, `{}` → templating with empty data), `convertTo` (string or `{formatName, formatOptions}`), `converter` (`L` LibreOffice default, `O` OnlyOffice, `C` Chromium; pdf only),
+`template` (base64, only with `/render/template`), `timezone` (default `Europe/Paris`), `lang`, `complement`, `variableStr`, `reportName`, `enum`, `translations`, `currencySource`, `currencyTarget`, `currencyRates`,
+`hardRefresh` (requires `convertTo`), `batchSplitBy`, `batchOutput` (`zip` default / `pdf`), `batchReportName`, `preReleaseFeatureIn`.
+
+Batch requires `batchSplitBy` and an async request (webhook); data array capped at 100 on cloud [doc].
+
+### Output formats [spec]
+
+Simple strings: pdf, docx, xlsx, pptx, odt, ods, odp, html, csv, txt, png, jpg, svg, epub, md, webp (plus doc, tiff... per conversion matrix).
+`formatOptions`:
+
+- PDF: `EncryptFile`, `DocumentOpenPassword`, `PermissionPassword`, `RestrictPermissions`, `Printing` (0-2), `Changes` (0-4), `Watermark`, `Watermarks[]` (`text`, `anchor`, `offsetX/Y`, `rotation`, `color`, `size`, `opacity`, `font`, `fromPage`, `toPage`),
+  `SelectPdfVersion`, `PDFUACompliance`, `PageRange`, `UseLosslessCompression`, `ReduceImageResolution`, `MaxImageResolution`, `UseTaggedPDF`, `ExportFormFields`, `ExportNotes` [doc for exact list].
+- JPG/PNG: `PixelWidth`, `PixelHeight`, `ColorMode`, `Quality` (jpg), `Compression`, `Interlaced`, `Translucent` (png).
+- CSV: `fieldSeparator`, `textDelimiter`, `characterSet`.
+
+### Errors [spec]
+
+HTTP 400 (not JSON / bad metadata / bad Content-Type), 401, 404 (template or render not found), 413 (template or JSON too large, limit not stated), 415 (unsupported template format), 422 (empty template / missing data field), 500 (render or server error). Body `{success:false, error:"..."}`.
+
+### Unverified / to confirm against a live key
+
+- Rendered file retention (1 hour, single download) [doc, moderate confidence].
+- Sync render timeout ~60 s, async ~5 min [doc, moderate confidence].
+- Exact size limits and rate limits: not published in the spec.
+- Behaviour of `carbone-version` on on-premise.
+- Node SDK header `carbone-template-delete-after` [doc].
+
+## Existing SDKs
+
+### carbone-sdk-java v2.0.4 (2026-03-17), `io.carbone:carbone-sdk`
+
+Feign + OkHttp + Gson + Jackson + Lombok, Java 11, blocking only. Covers: add/get/delete template, render by id, `render(json, pathOrId)` with local SHA-256 + upload-on-404, getReport, status, `carbone-version`, on-premise URL.
+Missing: typed render options (raw JSON string), webhooks, PATCH/list templates, versioning model, timeouts/retries, typed errors, in-memory templates (`byte[]`, issue #6), async.
+Weaknesses: global mutable static base URL, checked exception mixing API and SDK errors, swallowed exceptions (`generateTemplateId` returns null), misleading render error (issue #11 / PR #12 open), Feign `Logger.Level.FULL` hardcoded, two JSON libs, PascalCase methods.
+
+### carbone-sdk-node (reference)
+
+`addTemplate`, `getTemplate`, `delTemplate`, `render(templateIdOrPath, data, options)`, `setApiVersion`, `setOptions({carboneUrl, apiKey, headers, isReturningBuffer})`, promise variants, one retry on ECONNRESET, render returns `{content, filename}`.

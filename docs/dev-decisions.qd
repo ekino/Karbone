@@ -1,0 +1,68 @@
+.docname {Decision log}
+.include {docs}
+
+# Decision log
+
+> **Temporary development section.** These pages are the working notes that shaped Karbone, published as-is for the internal
+> review. They will be removed or rewritten before the public release; the reference is the code and the guides.
+
+
+## 2026-09-15 — Kotest 6 instead of Kotest 5.9 (Metalastic baseline)
+
+Chosen: Kotest 6.2.5 + `io.kotest` Gradle plugin (`customGradleTask = true` required, property has no default).
+Rejected: staying on 5.9.1 for parity with Metalastic — new project, no migration cost.
+
+## 2026-09-15 — Docs with Quarkdown, not VitePress/Writerside
+
+Chosen: Quarkdown 2.6.0 `docs` library, built in CI with `quarkdown-labs/setup-quarkdown`, deployed to GitHub Pages.
+Rejected: reusing Metalastic's VitePress setup — user wanted to try Quarkdown.
+
+## 2026-09-15 — HTTP client: java.net.http.HttpClient (JDK 21)
+
+Chosen: JDK HttpClient behind an internal `HttpTransport` interface; no HTTP dependency for consumers. A `karbone-ktor` transport module may come later.
+Rejected: Ktor client as default — heavier footprint and version-conflict risk for Spring/Java consumers, the main target; its advantages (MockEngine, plugins) are compensable given Carbone's small API surface.
+
+## 2026-09-15 — Serialization: kotlinx.serialization
+
+Chosen: kotlinx.serialization (Kotlin-native, no reflection, `JsonElement` for user data).
+Rejected: Jackson — heavier, and would force a Jackson version onto consumers.
+
+## 2026-09-15 — Hash-first render from bytes is in the initial scope
+
+Chosen: `render(TemplateSource.bytes|path, data, options)` computes SHA-256 locally, tries `POST /render/{sha}`, uploads on 404 and retries (Node/Java SDK flow). Only valid for legacy (non-versioned) template ids.
+Rejected: leaving it to consumers — iperia's Caffeine cache + reference-counted `deleteTemplate` exists only because the app has to remember upload results; the primitive makes that mechanism unnecessary. Template purge stays an app-side job via `templates.delete`.
+
+## 2026-09-15 — Errors with Arrow (`Raise` + `Either`), exceptions only in the Java facade
+
+Chosen: `sealed interface KarboneError` as values (Unauthorized, TemplateNotFound, RenderNotFound, PayloadTooLarge, UnsupportedFormat, InvalidRequest, RenderFailed, Transport, Serialization), always carrying the raw API `error` text.
+Primary Kotlin API: `context(_: Raise<KarboneError>) suspend fun ...`; `Either` obtained via `either { }`. `KarboneBlocking` facade for Java throws `KarboneException(error)`. `arrow-core` as an `api` dependency.
+Context parameters are stable in Kotlin 2.4 (iperia uses them on 2.4.20 without any compiler flag).
+Rejected: exceptions-only public API (loses typed composition for the Arrow-based main consumer); Arrow kept internal only (would still be transitive and would hide the main benefit).
+
+## 2026-09-15 — No business-rule engine in the SDK (for now)
+
+Chosen: request invariants (hardRefresh needs convertTo, batch needs batchSplitBy + webhook, converter only for pdf, Watermarks ≤ 5, Quality 1-100, list limit 1-100, multipart file last) enforced with `ensure` in builders/constructors raising `KarboneError.InvalidRequest`.
+Rejected: reusing iperia's `service/rules` engine — not a library yet, disproportionate for a client SDK. Revisit as an optional "pre-flight validation against edition/version capabilities" once the engine is extracted.
+
+## 2026-09-15 — `KarboneClient` interface + `FakeKarbone` shipped in the main artifact
+
+Chosen: consumers depend on `KarboneClient`; `com.ekino.oss.karbone.testing.FakeKarbone` is an in-memory double published in the same jar (no extra deps, no test-fixtures publishing complexity).
+Rejected: a separate `karbone-test` module / Gradle test fixtures — publication interplay with vanniktech plugin unverified; can be split later without breaking the API.
+
+## 2026-09-15 — Malformed JWT (HTTP 500 "Invalid JSON Web Token") mapped to `Unauthorized`
+
+Chosen: `Responses.apiError` checks the Carbone auth middleware message before the status switch. Verified against carbone-ee 5.8 in `CarboneAuthContainerSpec`.
+Rejected: keeping the literal `RenderFailed(500)` — misleading for consumers.
+
+## 2026-09-15 — Auth integration test with a checked-in test key pair
+
+Chosen: ES512 public key + 40-year JWT generated with the image's `generate-keys` / `generate-token`, stored under `src/test/resources/auth/` (private key discarded). Claims: `iss=carbone-user`, `aud=carbone-ee`.
+
+## 2026-09-15 — Cloud findings folded into the SDK (verified with a test key, api.carbone.io 5.14.4)
+
+- `KarboneError.Api.code` added: Carbone returns `code` (e.g. `w117` "test key: pdf only") next to `error`, sometimes with HTTP 200 + `success:false`.
+- Multipart `tags` must be one field holding a JSON array; repeated `tags` fields are rejected (400 "must be an array of non-empty strings").
+- Versioned upload responses carry `id`, `versionId` AND a compatibility `templateId`; parser now prefers the versioned shape.
+- In versioned mode `versionId` != SHA-256(file) (metadata enters the hash). Hash-first render therefore stays limited to non-versioned uploads.
+- Test-key templates expire after 30 days (`expireAt` set server-side); rendered files are single-download (second GET → 404 RenderNotFound).
+- Webhooks not exercised: they need a public callback URL. Left for a later manual check.

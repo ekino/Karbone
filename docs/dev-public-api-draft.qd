@@ -1,0 +1,326 @@
+.docname {Public API draft v1}
+.include {docs}
+
+# Public API draft v1
+
+> **Temporary development section.** These pages are the working notes that shaped Karbone, published as-is for the internal
+> review. They will be removed or rewritten before the public release; the reference is the code and the guides.
+
+> Historical draft written before implementation and before the rename to Karbone; signatures may differ from the shipped code.
+
+
+Package `com.ekino.oss.karbone`. Everything below is public API unless marked `internal`. Kotlin 2.4, context parameters, Arrow 2.x, kotlinx.serialization, coroutines.
+
+## 1. Client construction
+
+```kotlin
+class Karbone private constructor(internal val config: KarboneConfig, internal val transport: HttpTransport) {
+
+  val templates: Templates
+  val renders: Renders
+
+  /** GET /status — works without auth. */
+  context(_: Raise<KarboneError>) suspend fun status(): ApiStatus
+
+  /** Java / non-coroutine facade. */
+  fun blocking(): KarboneBlocking
+
+  companion object {
+    /** Cloud: api key required, carbone-version 5 by default. */
+    fun cloud(apiKey: String, configure: KarboneConfig.Builder.() -> Unit = {}): Karbone
+    /** On-premise: token optional (auth disabled by default on carbone-ee), no carbone-version header. */
+    fun onPremise(baseUrl: String, token: String? = null, configure: KarboneConfig.Builder.() -> Unit = {}): Karbone
+    /** Escape hatch: full control, custom transport (tests, Ktor adapter later). */
+    fun create(config: KarboneConfig, transport: HttpTransport = JdkHttpTransport(config)): Karbone
+  }
+}
+
+data class KarboneConfig(
+  val baseUrl: String,                       // "https://api.carbone.io" or "http://localhost:4000"
+  val token: String?,                        // Bearer; null → no Authorization header
+  val apiVersion: Int?,                      // 5 for cloud; null → header omitted (on-premise)
+  val connectTimeout: Duration = 10.seconds,
+  val requestTimeout: Duration = 60.seconds, // Carbone sync render timeout is 60 s
+  val retry: RetryPolicy = RetryPolicy.None, // opt-in, transport errors only
+  val json: Json = Json { ignoreUnknownKeys = true; explicitNulls = false },
+  val userAgent: String = "karbone/$VERSION",
+) { class Builder { /* mutable mirror + build() */ } }
+
+sealed interface RetryPolicy {
+  data object None : RetryPolicy
+  data class OnTransportError(val maxAttempts: Int = 2, val backoff: Duration = 200.milliseconds) : RetryPolicy
+}
+```
+
+## 2. Templates
+
+```kotlin
+interface Templates {
+  /** POST /template. Multipart, metadata fields before the file. Returns legacy or versioned identity. */
+  context(_: Raise<KarboneError>) suspend fun upload(source: TemplateSource.Content, options: UploadOptions = UploadOptions()): UploadedTemplate
+  /** GET /template/{id} */
+  context(_: Raise<KarboneError>) suspend fun download(id: TemplateId): TemplateFile
+  /** PATCH /template/{id} — cloud / enterprise only (template management). */
+  context(_: Raise<KarboneError>) suspend fun update(id: TemplateId, patch: TemplatePatch): TemplateInfo
+  /** DELETE /template/{id} */
+  context(_: Raise<KarboneError>) suspend fun delete(id: TemplateId)
+  /** GET /templates — one page. */
+  context(_: Raise<KarboneError>) suspend fun list(query: ListTemplatesQuery = ListTemplatesQuery()): Page<TemplateInfo>
+  /** All pages, follows nextCursor. Errors are raised on the collector's Raise. */
+  context(_: Raise<KarboneError>) fun listAll(query: ListTemplatesQuery = ListTemplatesQuery()): Flow<TemplateInfo>
+  context(_: Raise<KarboneError>) suspend fun categories(): List<String>
+  context(_: Raise<KarboneError>) suspend fun tags(): List<String>
+}
+
+/** Where a template comes from. `Content` variants can be hashed locally (SHA-256 = legacy template id). */
+sealed interface TemplateSource {
+  sealed interface Content : TemplateSource {
+    val fileName: String?
+    suspend fun bytes(): ByteArray               // read once, cached
+    suspend fun sha256(): TemplateId             // legacy id, computed lazily
+  }
+  data class Bytes(val content: ByteArray, override val fileName: String? = null) : Content
+  data class File(val path: Path) : Content      // fileName = path.fileName
+  data class Stream(val open: () -> InputStream, override val fileName: String? = null) : Content
+  data class Remote(val id: TemplateId) : TemplateSource
+
+  companion object {
+    fun bytes(b: ByteArray, fileName: String? = null): Content
+    fun file(p: Path): Content
+    fun stream(fileName: String? = null, open: () -> InputStream): Content
+    fun id(id: String): Remote
+  }
+}
+
+@JvmInline value class TemplateId(val value: String)          // legacy sha256, versioned id, or versionId
+@JvmInline value class RenderId(val value: String)
+
+data class UploadOptions(
+  val id: TemplateId? = null,          // versioned mode: attach as a new version of this template id
+  val versioning: Boolean = false,
+  val name: String? = null,            // ≤ 200
+  val comment: String? = null,         // ≤ 200
+  val category: String? = null,        // ≤ 200
+  val tags: List<String> = emptyList(),
+  val expireAt: Instant? = null,       // null → never
+  val deployedAt: Instant? = null,     // null → server default
+  val sample: TemplateSample? = null,  // data/complement/translations/enum for Studio preview
+)
+
+sealed interface UploadedTemplate {
+  val id: TemplateId
+  /** `{data:{templateId}}` — versioning off. id == sha256(content). */
+  data class Legacy(override val id: TemplateId) : UploadedTemplate
+  /** `{data:{id, versionId, type, size, createdAt, deployedAt}}` — versioning on. */
+  data class Versioned(override val id: TemplateId, val versionId: TemplateId, val type: String, val size: Long,
+                       val createdAt: Instant, val deployedAt: Instant?) : UploadedTemplate
+}
+
+data class TemplateInfo(val id: TemplateId, val versionId: TemplateId?, val name: String?, val category: String?,
+  val comment: String?, val tags: List<String>, val type: String?, val size: Long?, val origin: TemplateOrigin?,
+  val createdAt: Instant?, val deployedAt: Instant?, val expireAt: Instant?)
+enum class TemplateOrigin(val code: Int) { API(0), STUDIO(1), SALESFORCE(2), ODOO(3), HUBSPOT(4) }
+data class TemplatePatch(val id: TemplateId? = null, val name: String? = null, val comment: String? = null,
+  val category: String? = null, val tags: List<String>? = null, val expireAt: Instant? = null, val deployedAt: Instant? = null)
+data class ListTemplatesQuery(val id: TemplateId? = null, val versionId: TemplateId? = null, val category: String? = null,
+  val origin: TemplateOrigin? = null, val includeVersions: Boolean = false, val search: String? = null,
+  val limit: Int = 100 /* 1..100 */, val cursor: String? = null)
+data class Page<T>(val items: List<T>, val hasMore: Boolean, val nextCursor: String?)
+data class TemplateFile(val content: ByteArray, val fileName: String?, val contentType: String?)
+```
+
+## 3. Rendering
+
+```kotlin
+interface Renders {
+  /**
+   * Full sync flow: POST /render/{id}?download=true → bytes.
+   * With a `TemplateSource.Content`: hash-first — POST /render/{sha256}; on TemplateNotFound upload then retry once.
+   */
+  context(_: Raise<KarboneError>) suspend fun render(template: TemplateSource, data: RenderData, options: RenderOptions = RenderOptions()): RenderedDocument
+  context(_: Raise<KarboneError>) suspend fun render(template: TemplateSource, data: RenderData, configure: RenderOptions.Builder.() -> Unit): RenderedDocument
+
+  /** Two-step flow: POST /render/{id} (download=false) → RenderId, then download(). */
+  context(_: Raise<KarboneError>) suspend fun start(template: TemplateSource, data: RenderData, options: RenderOptions = RenderOptions()): RenderId
+  /** GET /render/{renderId}. No auth. Single download, 1 h retention (cloud). */
+  context(_: Raise<KarboneError>) suspend fun download(id: RenderId): RenderedDocument
+
+  /** Async: same request + carbone-webhook-url header. Carbone POSTs {success, data:{renderId}} to the webhook. Required for batch. */
+  context(_: Raise<KarboneError>) suspend fun startAsync(template: TemplateSource, data: RenderData, webhook: Webhook, options: RenderOptions = RenderOptions()): AsyncRenderAccepted
+
+  /** POST /render/template with a base64 document and no data: pure format conversion. */
+  context(_: Raise<KarboneError>) suspend fun convert(document: TemplateSource.Content, to: OutputFormat, options: RenderOptions = RenderOptions()): RenderedDocument
+}
+
+/** The `data` field. Any JSON the caller already has, or a @Serializable value. */
+sealed interface RenderData {
+  data class Raw(val json: String) : RenderData                 // pre-serialized (Jackson users)
+  data class Element(val json: JsonElement) : RenderData
+  class Value<T>(val value: T, val serializer: KSerializer<T>) : RenderData
+  companion object {
+    fun raw(json: String): RenderData
+    fun of(json: JsonElement): RenderData
+    inline fun <reified T> of(value: T): RenderData             // kotlinx serializer<T>()
+    val Empty: RenderData                                        // {} → templating with empty data
+  }
+}
+
+data class RenderOptions(
+  val convertTo: OutputFormat? = null,
+  val converter: PdfConverter? = null,        // requires convertTo == Pdf
+  val timezone: String? = null,               // IANA, default Europe/Paris server-side
+  val lang: String? = null,                   // "fr-fr"
+  val complement: JsonElement? = null,
+  val variableStr: String? = null,
+  val reportName: String? = null,
+  val enum: JsonObject? = null,               // {"FUNDER_NAME": {"APNI ASSMAT": "APNI"}}
+  val translations: JsonObject? = null,
+  val currency: CurrencyConversion? = null,   // source, target, rates
+  val hardRefresh: Boolean = false,           // requires convertTo
+  val batch: BatchOptions? = null,            // requires webhook (startAsync)
+  val preReleaseFeatureIn: Int? = null,
+  val headers: Map<String, String> = emptyMap(),  // extra request headers (carbone-egress-header-*, custom)
+) { class Builder { /* mutable mirror; pdf { }, image { }, csv { } helpers; build() validates with ensure */ } }
+
+enum class PdfConverter(val code: String) { LIBRE_OFFICE("L"), ONLY_OFFICE("O"), CHROMIUM("C") }
+data class CurrencyConversion(val source: String, val target: String, val rates: Map<String, Double> = emptyMap())
+data class BatchOptions(val splitBy: String, val output: BatchOutput = BatchOutput.ZIP, val reportName: String? = null)
+enum class BatchOutput { ZIP, PDF }
+data class Webhook(val url: String, val headers: Map<String, String> = emptyMap()) // → carbone-webhook-header-<name>
+data class AsyncRenderAccepted(val message: String?)
+
+data class RenderedDocument(val content: ByteArray, val fileName: String?, val contentType: String?) {
+  fun inputStream(): InputStream
+  suspend fun writeTo(path: Path)
+}
+```
+
+### Output formats (`convertTo`)
+
+```kotlin
+sealed interface OutputFormat {
+  val formatName: String
+
+  /** Plain string form: "docx", "xlsx", "odt", "html", "txt", "epub", "md", "svg", "webp", ... */
+  data class Simple(override val formatName: String) : OutputFormat
+
+  data class Pdf(val options: PdfOptions = PdfOptions()) : OutputFormat { override val formatName get() = "pdf" }
+  data class Jpg(val options: ImageOptions = ImageOptions()) : OutputFormat
+  data class Png(val options: ImageOptions = ImageOptions()) : OutputFormat
+  data class Csv(val options: CsvOptions = CsvOptions()) : OutputFormat
+
+  companion object {
+    val PDF: OutputFormat = Pdf()
+    val DOCX = Simple("docx"); val XLSX = Simple("xlsx"); val PPTX = Simple("pptx")
+    val ODT = Simple("odt");   val ODS = Simple("ods");   val ODP = Simple("odp")
+    val HTML = Simple("html"); val TXT = Simple("txt");   val MD = Simple("md"); val EPUB = Simple("epub")
+    fun pdf(configure: PdfOptions.Builder.() -> Unit): Pdf
+  }
+}
+
+data class PdfOptions(
+  val version: PdfVersion? = null,                 // SelectPdfVersion (int)
+  val encryptFile: Boolean? = null, val documentOpenPassword: String? = null,
+  val permissionPassword: String? = null, val restrictPermissions: Boolean? = null,
+  val printing: PdfPrinting? = null, val changes: PdfChanges? = null,
+  val watermark: String? = null, val watermarks: List<Watermark> = emptyList(), // ≤ 5
+  val pdfUaCompliance: Boolean? = null, val useTaggedPdf: Boolean? = null,
+  val pageRange: String? = null,
+  val useLosslessCompression: Boolean? = null, val reduceImageResolution: Boolean? = null,
+  val maxImageResolution: ImageResolution? = null,  // 75/150/300/600/1200
+  val exportFormFields: Boolean? = null, val exportNotes: Boolean? = null,
+)
+enum class PdfVersion(val code: Int) { PDF_1_6(0), PDF_A_1(1), PDF_A_2(2), PDF_A_3(3), PDF_1_5(15), PDF_1_6_EXPLICIT(16) } // 15-20 range to confirm
+enum class PdfPrinting(val code: Int) { NOT_PERMITTED(0), LOW_RESOLUTION(1), MAXIMUM(2) }
+enum class PdfChanges(val code: Int) { NONE(0), INSERT_DELETE_ROTATE(1), FILL_FORMS(2), COMMENT(3), ANY_EXCEPT_EXTRACT(4) }
+enum class ImageResolution(val dpi: Int) { DPI_75(75), DPI_150(150), DPI_300(300), DPI_600(600), DPI_1200(1200) }
+data class Watermark(val text: String, val anchor: WatermarkAnchor = WatermarkAnchor.CENTER, val offsetX: Double = 0.0,
+  val offsetY: Double = 0.0, val rotation: Double = 45.0, val color: String = "#000000", val size: Double? = null,
+  val opacity: Double? = null, val font: String? = null, val fromPage: Int? = null, val toPage: Int? = null)
+enum class WatermarkAnchor { TOP_LEFT, TOP, TOP_RIGHT, LEFT, CENTER, RIGHT, BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT }
+
+data class ImageOptions(val pixelWidth: Int? = null, val pixelHeight: Int? = null, val colorMode: ColorMode? = null,
+  val quality: Int? = null /* jpg 1..100 */, val compression: Int? = null /* png 0..9 */,
+  val interlaced: Boolean? = null, val translucent: Boolean? = null)
+enum class ColorMode(val code: Int) { COLOR(0), GREYSCALE(1) }
+data class CsvOptions(val fieldSeparator: String? = null, val textDelimiter: String? = null, val characterSet: String? = null)
+```
+
+JSON wire names (`SelectPdfVersion`, `EncryptFile`, `PixelWidth`, `fieldSeparator`...) are handled by `@SerialName` on internal DTOs; the public data classes stay idiomatic.
+
+## 4. Errors
+
+```kotlin
+sealed interface KarboneError {
+  /** Errors returned by the Carbone API. `message` is the raw `error` text, never rewritten. */
+  sealed interface Api : KarboneError { val status: Int; val message: String?; val requestId: String? }
+  data class Unauthorized(override val status: Int = 401, override val message: String?, override val requestId: String? = null) : Api
+  data class TemplateNotFound(val id: TemplateId, override val status: Int = 404, override val message: String?, override val requestId: String? = null) : Api
+  data class RenderNotFound(val id: RenderId, override val status: Int = 404, override val message: String?, override val requestId: String? = null) : Api
+  data class PayloadTooLarge(override val status: Int = 413, override val message: String?, override val requestId: String? = null) : Api
+  data class UnsupportedTemplateFormat(override val status: Int = 415, override val message: String?, override val requestId: String? = null) : Api
+  data class BadRequest(override val status: Int /* 400 | 422 */, override val message: String?, override val requestId: String? = null) : Api
+  data class RenderFailed(override val status: Int = 500, override val message: String?, override val requestId: String? = null) : Api
+  data class Unexpected(override val status: Int, override val message: String?, val body: String?, override val requestId: String? = null) : Api
+
+  /** Client-side. */
+  data class InvalidRequest(val reason: String) : KarboneError                       // ensure() in builders
+  data class Transport(val cause: Throwable) : KarboneError                          // IOException, timeout, cancelled
+  data class Serialization(val cause: Throwable, val body: String?) : KarboneError   // unparsable response
+  data class TemplateRead(val source: TemplateSource.Content, val cause: Throwable) : KarboneError
+}
+
+/** Thrown only by KarboneBlocking. */
+class KarboneException(val error: KarboneError) : RuntimeException(error.describe())
+```
+
+## 5. Java facade
+
+```kotlin
+class KarboneBlocking internal constructor(private val karbone: Karbone) {
+  val templates: TemplatesBlocking   // same methods, no suspend, no Raise; throws KarboneException
+  val renders: RendersBlocking       // listAll() → List<TemplateInfo>
+  fun status(): ApiStatus
+}
+```
+
+Usage from Kotlin (iperia-like):
+
+```kotlin
+val karbone = Karbone.onPremise("http://localhost:4000", token = props.accessToken)
+
+context(_: Raise<KarboneError>)
+suspend fun invoice(docx: ByteArray, bill: Bill): RenderedDocument =
+  karbone.renders.render(TemplateSource.bytes(docx), RenderData.raw(objectMapper.writeValueAsString(bill))) {
+    pdf { version = PdfVersion.PDF_A_3 }
+    enum = legacyEnum
+  }
+
+val result: Either<KarboneError, RenderedDocument> = either { invoice(docx, bill) }
+```
+
+Usage from Java:
+
+```java
+var karbone = Karbone.onPremise("http://localhost:4000", null).blocking();
+var doc = karbone.getRenders().render(TemplateSource.file(path), RenderData.raw(json), RenderOptions.pdf(PdfVersion.PDF_A_3));
+```
+
+## 6. Internal boundaries
+
+```kotlin
+internal interface HttpTransport {
+  suspend fun execute(request: HttpRequestSpec): HttpResponseSpec   // bytes in / bytes out, no JSON knowledge
+}
+internal class JdkHttpTransport(config: KarboneConfig) : HttpTransport  // java.net.http, multipart writer, timeouts, retry
+internal object Wire { /* @Serializable DTOs with @SerialName, envelope parsing, error mapping → KarboneError */ }
+```
+
+`karbone-test` (later): `FakeKarbone` implementing `Templates`/`Renders` in memory, plus a `RecordingTransport`.
+
+## Open questions before implementation
+
+1. `TemplateId` as a single value class for legacy sha256 / versioned id / versionId — or three types? Single keeps the API small; the server accepts all in the same path segment.
+2. `RenderData.Value<T>` requires a `KSerializer`; with `reified` helper only. Fine for kotlinx users; Jackson users use `Raw`.
+3. `Renders.render(TemplateSource.Remote)` with `download=true` vs two-step — default to `download=true` (one round-trip, nothing stored server-side).
+4. Hash-first only for `TemplateSource.Content`; document that in versioned mode a `Remote(id)` must be used.

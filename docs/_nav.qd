@@ -8,3 +8,10 @@
 - [Errors](errors.qd)
 - [On-premise](on-premise.qd)
 - [Testing](testing.qd)
+
+###! Development notes (temporary)
+- [Carbone API study](dev-api-study.qd)
+- [Primary use case](dev-iperia-usage.qd)
+- [SDK design framing](dev-sdk-design.qd)
+- [Public API draft v1](dev-public-api-draft.qd)
+- [Decision log](dev-decisions.qd)
