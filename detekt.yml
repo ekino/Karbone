@@ -1,0 +1,16 @@
+complexity:
+  TooManyFunctions:
+    allowedFunctionsPerClass: 50
+  LongMethod:
+    allowedLines: 80
+  LongParameterList:
+    allowedFunctionParameters: 7
+  LargeClass:
+    allowedLines: 2000
+style:
+  MaxLineLength:
+    maxLineLength: 160
+    excludePackageStatements: true
+    excludeImportStatements: true
+    excludeCommentStatements: false
+    excludes: ["**/build/generated/**"]

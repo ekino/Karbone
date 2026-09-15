@@ -1,0 +1,42 @@
+[versions]
+# Kotlin and JVM
+kotlin = "2.4.10"
+
+# Code Quality
+spotless = "8.9.0"
+detekt = "2.0.0-alpha.6"
+
+# Publishing
+gradle-maven-publish-plugin = "0.37.0"
+
+# Testing
+mockk = "1.14.11"
+kotest = "6.2.5"
+
+# Logging
+kotlin-logging = "8.0.4"
+
+[libraries]
+# Kotlin
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
+
+# Testing
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+
+# Kotest
+kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
+
+# Logging
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
+
+[bundles]
+kotest-extended = ["kotest-runner-junit5", "kotest-assertions-core", "kotest-property", "kotlin-test"]
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotest = { id = "io.kotest", version.ref = "kotest" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+detekt = { id = "dev.detekt", version.ref = "detekt" }
+gradle-maven-publish-plugin = { id = "com.vanniktech.maven.publish", version.ref = "gradle-maven-publish-plugin" }

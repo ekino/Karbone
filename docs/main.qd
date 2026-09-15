@@ -1,0 +1,21 @@
+.docname {Karbon}
+.docdescription {A modern Kotlin SDK for the Carbone.io document generation API.}
+.htmloptions baseurl:{https://ekino.github.io/Karbon}
+.include {docs}
+
+# Karbon
+
+Karbon is a Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API.
+
+It is meant as a modern, idiomatic and complete replacement for the official
+[carbone-sdk-java](https://github.com/carboneio/carbone-sdk-java).
+
+> Karbon is in early development. The API is not stable yet.
+
+## Why Karbon?
+
+- Idiomatic Kotlin API, coroutine-friendly.
+- Full coverage of the Carbone API (templates, rendering, status).
+- Published on Maven Central under `com.ekino.oss:karbon`, MIT licensed.
+
+Head over to the [Quickstart](quickstart.qd) to get started.

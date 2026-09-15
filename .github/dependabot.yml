@@ -1,0 +1,62 @@
+# Dependabot configuration for Karbon
+# Updates gradle/libs.versions.toml and GitHub Actions weekly.
+
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    groups:
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+        update-types:
+          - "minor"
+          - "patch"
+      code-quality:
+        patterns:
+          - "com.diffplug.spotless*"
+          - "dev.detekt*"
+        update-types:
+          - "minor"
+          - "patch"
+      testing:
+        patterns:
+          - "io.kotest*"
+          - "io.mockk*"
+      publishing:
+        patterns:
+          - "com.vanniktech.maven.publish*"
+    ignore:
+      # Major updates need manual review and testing
+      - dependency-name: "org.jetbrains.kotlin:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.diffplug.spotless:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "dev.detekt:*"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Paris"
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"

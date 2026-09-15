@@ -1,0 +1,18 @@
+.docname {Quickstart}
+.include {docs}
+
+# Quickstart
+
+## Installation
+
+Add the dependency to your Gradle build:
+
+```kotlin
+dependencies {
+    implementation("com.ekino.oss:karbon:<version>")
+}
+```
+
+## Usage
+
+Coming soon.
