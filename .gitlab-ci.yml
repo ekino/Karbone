@@ -9,7 +9,8 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
 
 default:
-  image: registry.ekino.com/iperia/docker-build/ci-kotlin-2_4-java25:2026.06.05
+  # Public image: the iperia CI image lives in a registry this project cannot pull from.
+  image: eclipse-temurin:21-jdk
   tags:
     - "aws"
     - "docker"
@@ -32,6 +33,9 @@ cache:
 
 build:
   stage: build
+  before_script:
+    # Node is needed by Spotless (prettier for Markdown/YAML)
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends nodejs npm > /dev/null
   script:
     - chmod +x ./gradlew
     - ./gradlew build --console=plain
