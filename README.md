@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/karbone-mark.svg" alt="Karbone" width="120" height="120"></p>
+
 # Karbone
 
 A modern Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API.

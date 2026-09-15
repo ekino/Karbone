@@ -3,6 +3,9 @@
 .htmloptions baseurl:{https://ekino.github.io/Karbone}
 .include {docs}
 
+.html
+    <p style="margin: 0 0 1.5rem 0"><img src="karbone-mark.svg" alt="Karbone" width="96" height="96"></p>
+
 Karbone is a Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API.
 
 It is meant as a modern, idiomatic and complete replacement for the official
