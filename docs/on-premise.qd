@@ -1,8 +1,6 @@
 .docname {On-premise}
 .include {docs}
 
-# On-premise
-
 Karbone treats self-hosted `carbone-ee` as a first-class target, not an afterthought: `Karbone.onPremise(...)` has its own
 defaults (no `carbone-version` header, optional token) instead of reusing the cloud client with a different `baseUrl`.
 

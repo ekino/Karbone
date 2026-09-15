@@ -1,8 +1,6 @@
 .docname {Logging}
 .include {docs}
 
-# Logging
-
 Karbone is a library: it stays quiet by default and never decides where your logs go.
 
 ## Facade and backend

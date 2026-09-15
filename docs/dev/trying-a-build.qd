@@ -1,8 +1,6 @@
 .docname {Trying a build}
 .include {docs}
 
-# Trying a build
-
 > **Temporary development section.** During the internal review, builds are published to the GitLab Package Registry of the
 > `karbone` project, unsigned. Maven Central publication happens from GitHub once the review is done.
 

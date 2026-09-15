@@ -1,8 +1,6 @@
 .docname {Templates}
 .include {docs}
 
-# Templates
-
 `karbone.templates` manages templates stored on Carbone directly (`/template` and `/templates`). Most rendering does not need
 this: see the hash-first flow in [Rendering](rendering.qd), which uploads on demand. Use `templates` when you want explicit
 control — versioning, metadata, categories, tags, or cleanup.

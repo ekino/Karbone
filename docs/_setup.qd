@@ -1,6 +1,6 @@
 .doclang {English}
 .docauthor {ekino}
-.theme {darko} layout:{minimal}
+.theme {paperwhite} layout:{hyperlegible}
 
 .pagemargin {topright}
     [GitHub](https://github.com/ekino/Karbone)

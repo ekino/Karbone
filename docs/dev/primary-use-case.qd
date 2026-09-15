@@ -1,8 +1,6 @@
 .docname {Primary use case}
 .include {docs}
 
-# Primary use case
-
 > **Temporary development section.** These pages are the working notes that shaped Karbone, published as-is for the internal
 > review. They will be removed or rewritten before the public release; the reference is the code and the guides.
 

@@ -1,8 +1,6 @@
 .docname {Quickstart}
 .include {docs}
 
-# Quickstart
-
 ## Installation
 
 Add the dependency to your Gradle build:

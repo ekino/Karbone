@@ -1,8 +1,6 @@
 .docname {Testing}
 .include {docs}
 
-# Testing
-
 ## Depend on `KarboneClient`
 
 Code that calls Karbone should depend on the `KarboneClient` interface (`templates`, `renders`, `status()`), not on the

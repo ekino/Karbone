@@ -1,8 +1,6 @@
 .docname {Configuration}
 .include {docs}
 
-# Configuration
-
 ## `KarboneConfig`
 
 `KarboneConfig` is the immutable, per-client configuration behind every `Karbone` instance:

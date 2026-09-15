@@ -1,8 +1,6 @@
 .docname {Public API draft v1}
 .include {docs}
 
-# Public API draft v1
-
 > **Temporary development section.** These pages are the working notes that shaped Karbone, published as-is for the internal
 > review. They will be removed or rewritten before the public release; the reference is the code and the guides.
 

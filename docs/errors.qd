@@ -1,8 +1,6 @@
 .docname {Errors}
 .include {docs}
 
-# Errors
-
 Karbone never throws for expected failure modes. Every SDK method is declared as
 `context(_: Raise<KarboneError>) suspend fun ...`, using [Arrow](https://arrow-kt.io/)'s `Raise` to make failure part of the
 return type instead of an exception.

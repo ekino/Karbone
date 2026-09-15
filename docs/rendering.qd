@@ -1,8 +1,6 @@
 .docname {Rendering}
 .include {docs}
 
-# Rendering
-
 Everything document-generation related lives on `karbone.renders`, an implementation of the `Renders` interface.
 
 ## Template sources
