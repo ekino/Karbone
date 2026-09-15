@@ -1,12 +1,20 @@
 complexity:
   TooManyFunctions:
     allowedFunctionsPerClass: 50
+    allowedFunctionsPerObject: 20
   LongMethod:
     allowedLines: 80
   LongParameterList:
     allowedFunctionParameters: 7
   LargeClass:
     allowedLines: 2000
+  CyclomaticComplexMethod:
+    # wire mapping functions are long flat lists of `x?.let { put(...) }`
+    allowedComplexity: 25
+coroutines:
+  InjectDispatcher:
+    # library code, no DI container; Dispatchers.IO is only used to read local template files
+    active: false
 style:
   MaxLineLength:
     maxLineLength: 160
@@ -14,3 +22,8 @@ style:
     excludeImportStatements: true
     excludeCommentStatements: false
     excludes: ["**/build/generated/**"]
+  MagicNumber:
+    ignoreEnums: true
+    ignoreCompanionObjectPropertyDeclaration: true
+  ReturnCount:
+    max: 4

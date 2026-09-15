@@ -1,5 +1,6 @@
 plugins {
   alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.kotest)
   alias(libs.plugins.spotless)
   alias(libs.plugins.detekt)
@@ -41,10 +42,20 @@ repositories { mavenCentral() }
 kotlin { jvmToolchain(21) }
 
 dependencies {
+  api(libs.arrow.core)
+  api(libs.kotlinx.coroutines.core)
+  api(libs.kotlinx.serialization.json)
   implementation(libs.kotlin.logging)
 
   testImplementation(libs.bundles.kotest.extended)
+  testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.mockk)
+  testImplementation(libs.testcontainers)
+}
+
+kotlin {
+  explicitApi()
+  compilerOptions { freeCompilerArgs.addAll("-Xjsr305=strict", "-jvm-default=enable") }
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }

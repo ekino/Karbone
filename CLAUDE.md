@@ -25,10 +25,30 @@ tooling, look there first.
   Spotless inserts it, so run `spotlessApply` rather than typing it.
 - **Detekt** (`detekt.yml`, built on default config): max line length 160, `detektMain` is wired into `check`.
 
+## Architecture
+
+- **Public API** (`com.ekino.oss.karbon`): `Karbon` entry point (`cloud(...)`, `onPremise(...)`, `create(config)`), `Templates` and `Renders`
+  interfaces, `KarbonConfig`, `KarbonError` (sealed values) and `KarbonException` (blocking facade only). Models live in `model/`.
+- **Error style**: every I/O method is `context(_: Raise<KarbonError>) suspend fun`. Never throw for API or transport failures; `raise`
+  a `KarbonError` and keep the raw Carbone `error` text in `message`. Request invariants use `ensure { InvalidRequest(...) }`.
+  `blocking/KarbonBlocking` wraps calls in `either { }` and throws `KarbonException` for Java callers.
+- **Layers** (`internal/`): `Calls` (URL building, transport/IO error → `KarbonError.Transport`), `DefaultTemplates` / `DefaultRenders`
+  (endpoint logic, hash-first render: try `POST /render/{sha256}`, on 404 upload then retry once), `http/` (`HttpTransport` = bytes
+  in/out, `JdkHttpTransport` on `java.net.http` with multipart writer, auth, `carbone-version`, retry), `wire/` (`RenderBody` builds the
+  JSON body with Carbone wire names such as `SelectPdfVersion`; `Responses` parses the `{success, data, error}` envelope, maps HTTP
+  status → `KarbonError.Api`, extracts filenames from `Content-Disposition`).
+- Public models stay idiomatic (`PdfVersion.PDF_A_3`, `Watermark`...); wire names exist only in `wire/`. `explicitApi()` is on.
+- `RenderData.Raw` exists on purpose: consumers using Jackson (iperia-back) pass pre-serialized JSON.
+- `renders.convert` sends no `data` (v5 spec) and retries with `data: {}` on a 422 "Missing data" from v4-behaving servers
+  (carbone-ee 5.8 on-premise does this).
+
 ## Testing
 
 Kotest 6 on JUnit Platform plus the `io.kotest` Gradle plugin (`libs.bundles.kotest.extended`: runner, assertions, property, kotlin-test; data-driven `withData` is built into the engine) plus MockK.
-Write specs as `ShouldSpec` classes named `*Spec` under `src/test/kotlin/com/ekino/oss/karbon`, e.g.:
+Write specs as `ShouldSpec` classes named `*Spec` under `src/test/kotlin/com/ekino/oss/karbon`. Unit specs stub Carbone with the JDK
+`com.sun.net.httpserver.HttpServer` (no WireMock). `integration/CarboneContainerSpec` runs against `carbone/carbone-ee:full-5.8.0-fonts`
+through Testcontainers and is skipped automatically when Docker is unavailable; the docx fixture is `src/test/resources/templates/invoice.docx`
+(built by hand, contains `{d.number}`, `{d.customer.name}`, `:formatC`, `:convEnum`). Example:
 
 ```kotlin
 class FooSpec : ShouldSpec({ should("do X") { foo() shouldBe bar } })

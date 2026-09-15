@@ -2,6 +2,11 @@
 # Kotlin and JVM
 kotlin = "2.4.10"
 
+# Runtime
+arrow = "2.2.3"
+kotlinx-serialization = "1.11.0"
+kotlinx-coroutines = "1.11.0"
+
 # Code Quality
 spotless = "8.9.0"
 detekt = "2.0.0-alpha.6"
@@ -11,6 +16,7 @@ gradle-maven-publish-plugin = "0.37.0"
 
 # Testing
 mockk = "1.14.11"
+testcontainers = "2.0.5"
 kotest = "6.2.5"
 
 # Logging
@@ -20,7 +26,14 @@ kotlin-logging = "8.0.4"
 # Kotlin
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 
+# Runtime
+arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+
 # Testing
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 # Kotest
@@ -36,6 +49,7 @@ kotest-extended = ["kotest-runner-junit5", "kotest-assertions-core", "kotest-pro
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotest = { id = "io.kotest", version.ref = "kotest" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
