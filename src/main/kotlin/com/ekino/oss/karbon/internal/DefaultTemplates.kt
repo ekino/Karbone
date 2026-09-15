@@ -32,8 +32,10 @@ import com.ekino.oss.karbon.model.UploadedTemplate
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -54,7 +56,14 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
       options.name?.let { add("name" to it) }
       options.comment?.let { add("comment" to it) }
       options.category?.let { add("category" to it) }
-      options.tags.forEach { add("tags" to it) }
+      if (options.tags.isNotEmpty())
+        add(
+          "tags" to
+            calls.json.encodeToString(
+              JsonArray.serializer(),
+              JsonArray(options.tags.map(::JsonPrimitive)),
+            )
+        )
       options.expireAt?.let { add("expireAt" to it.epochSecond.toString()) }
       options.deployedAt?.let { add("deployedAt" to it.epochSecond.toString()) }
       options.sample?.let { s ->
@@ -83,22 +92,25 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
 
   context(_: Raise<KarbonError>)
   private fun parseUploaded(data: JsonElement, body: String): UploadedTemplate {
-    data.str("templateId")?.let {
-      return UploadedTemplate.Legacy(TemplateId(it))
-    }
+    // Versioned responses also carry a backward-compatible `templateId`; prefer the versioned shape
+    // when present.
     val id = data.str("id")
     val versionId = data.str("versionId")
-    ensure(id != null && versionId != null) {
+    if (id != null && versionId != null) {
+      return UploadedTemplate.Versioned(
+        id = TemplateId(id),
+        versionId = TemplateId(versionId),
+        type = data.str("type"),
+        size = data.long("size"),
+        createdAt = data.long("createdAt")?.let(Instant::ofEpochSecond),
+        deployedAt = data.long("deployedAt")?.takeIf { it > 0 }?.let(Instant::ofEpochSecond),
+      )
+    }
+    val legacy = data.str("templateId")
+    ensure(legacy != null) {
       KarbonError.Serialization(IllegalStateException("Missing templateId or id/versionId"), body)
     }
-    return UploadedTemplate.Versioned(
-      id = TemplateId(id),
-      versionId = TemplateId(versionId),
-      type = data.str("type"),
-      size = data.long("size"),
-      createdAt = data.long("createdAt")?.let(Instant::ofEpochSecond),
-      deployedAt = data.long("deployedAt")?.takeIf { it > 0 }?.let(Instant::ofEpochSecond),
-    )
+    return UploadedTemplate.Legacy(TemplateId(legacy))
   }
 
   context(_: Raise<KarbonError>)
@@ -121,7 +133,7 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
       patch.comment?.let { put("comment", it) }
       patch.category?.let { put("category", it) }
       patch.tags?.let { tags ->
-        putJsonArray("tags") { tags.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+        putJsonArray("tags") { tags.forEach { add(JsonPrimitive(it)) } }
       }
       patch.expireAt?.let { put("expireAt", it.epochSecond) }
       patch.deployedAt?.let { put("deployedAt", it.epochSecond) }

@@ -7,11 +7,14 @@ Karbon never throws for expected failure modes. Every SDK method is declared as
 `context(_: Raise<KarbonError>) suspend fun ...`, using [Arrow](https://arrow-kt.io/)'s `Raise` to make failure part of the
 return type instead of an exception.
 
+Every `KarbonError.Api` also exposes `code`, Carbone's own error code when the response carries one. For example a *test* API key
+may only produce PDF output: asking for DOCX yields `Unexpected(status=200, code="w117", message="With a test key, you can only convert in the following format (pdf)")`.
+
 ## The `KarbonError` hierarchy
 
 | Type                       | When                                                                                   | Key fields                          |
 |----------------------------|-----------------------------------------------------------------------------------------|--------------------------------------|
-| `Unauthorized`             | HTTP 401, or a malformed on-premise JWT (see below)                                     | `status`, `message`                  |
+| `Unauthorized`             | HTTP 401, or a malformed on-premise JWT (see below)                                     | `status`, `message`, `code`          |
 | `TemplateNotFound`         | HTTP 404 on a call addressing a known template id                                       | `id`, `status`, `message`            |
 | `RenderNotFound`           | HTTP 404 on `renders.download(id)`                                                       | `id`, `status`, `message`            |
 | `PayloadTooLarge`          | HTTP 413                                                                                 | `status`, `message`                  |

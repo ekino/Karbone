@@ -44,6 +44,9 @@ jobs:
         run: ./gradlew build -x test
 
       - name: Run tests
+        env:
+          # Optional: enables CarboneCloudSpec against api.carbone.io with a *test* key. Skipped when absent.
+          CARBONE_TEST_API_KEY: ${{ secrets.CARBONE_TEST_API_KEY }}
         run: ./gradlew test
 
       - name: Upload test results

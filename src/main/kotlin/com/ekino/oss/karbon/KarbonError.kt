@@ -20,19 +20,24 @@ public sealed interface KarbonError {
     public val status: Int
     public val message: String?
 
+    /** Carbone error code when provided, e.g. `w117`. */
+    public val code: String?
+
     override fun describe(): String =
-      "Carbone API error HTTP $status${message?.let { ": $it" }.orEmpty()}"
+      "Carbone API error HTTP $status${code?.let { " [$it]" }.orEmpty()}${message?.let { ": $it" }.orEmpty()}"
   }
 
   public data class Unauthorized(
     override val message: String?,
     override val status: Int = HTTP_UNAUTHORIZED,
+    override val code: String? = null,
   ) : Api
 
   public data class TemplateNotFound(
     val id: TemplateId,
     override val message: String?,
     override val status: Int = HTTP_NOT_FOUND,
+    override val code: String? = null,
   ) : Api {
     override fun describe(): String = "Template $id not found${message?.let { ": $it" }.orEmpty()}"
   }
@@ -41,6 +46,7 @@ public sealed interface KarbonError {
     val id: RenderId,
     override val message: String?,
     override val status: Int = HTTP_NOT_FOUND,
+    override val code: String? = null,
   ) : Api {
     override fun describe(): String = "Render $id not found${message?.let { ": $it" }.orEmpty()}"
   }
@@ -48,20 +54,27 @@ public sealed interface KarbonError {
   public data class PayloadTooLarge(
     override val message: String?,
     override val status: Int = HTTP_PAYLOAD_TOO_LARGE,
+    override val code: String? = null,
   ) : Api
 
   public data class UnsupportedTemplateFormat(
     override val message: String?,
     override val status: Int = HTTP_UNSUPPORTED_MEDIA,
+    override val code: String? = null,
   ) : Api
 
   /** HTTP 400 or 422: rejected metadata, invalid JSON, missing field, empty template... */
-  public data class BadRequest(override val status: Int, override val message: String?) : Api
+  public data class BadRequest(
+    override val status: Int,
+    override val message: String?,
+    override val code: String? = null,
+  ) : Api
 
   /** HTTP 500 on a render endpoint. */
   public data class RenderFailed(
     override val message: String?,
     override val status: Int = HTTP_SERVER_ERROR,
+    override val code: String? = null,
   ) : Api
 
   /** Any other non-2xx status, or a 2xx with `success: false`. */
@@ -69,6 +82,7 @@ public sealed interface KarbonError {
     override val status: Int,
     override val message: String?,
     val body: String?,
+    override val code: String? = null,
   ) : Api
 
   /** A request rejected client-side before any call. */

@@ -40,6 +40,9 @@ tooling, look there first.
   status → `KarbonError.Api`, extracts filenames from `Content-Disposition`).
 - Public models stay idiomatic (`PdfVersion.PDF_A_3`, `Watermark`...); wire names exist only in `wire/`. `explicitApi()` is on.
 - `RenderData.Raw` exists on purpose: consumers using Jackson (iperia-back) pass pre-serialized JSON.
+- `KarbonError.Api.code` carries Carbone's error code (e.g. `w117`). Versioned upload responses also contain a legacy `templateId`;
+  `parseUploaded` prefers `id`/`versionId`. In versioned mode `versionId` is not the plain SHA-256 of the file. Multipart `tags` must be
+  a JSON array string, not repeated fields.
 - A malformed bearer makes carbone-ee answer HTTP 500 "Invalid JSON Web Token"; `Responses.apiError` maps that message to `Unauthorized`.
 - `renders.convert` sends no `data` (v5 spec) and retries with `data: {}` on a 422 "Missing data" from v4-behaving servers
   (carbone-ee 5.8 on-premise does this).
@@ -50,7 +53,9 @@ Kotest 6 on JUnit Platform plus the `io.kotest` Gradle plugin (`libs.bundles.kot
 Write specs as `ShouldSpec` classes named `*Spec` under `src/test/kotlin/com/ekino/oss/karbon`. Unit specs stub Carbone with the JDK
 `com.sun.net.httpserver.HttpServer` (no WireMock). `integration/CarboneContainerSpec` runs against `carbone/carbone-ee:full-5.8.0-fonts`
 through Testcontainers and is skipped automatically when Docker is unavailable; `integration/CarboneAuthContainerSpec` does the same with
-`CARBONE_AUTHENTICATION=true` using the test key pair in `src/test/resources/auth/` (ES512 JWT, claims `iss=carbone-user`, `aud=carbone-ee`); the docx fixture is `src/test/resources/templates/invoice.docx`
+`CARBONE_AUTHENTICATION=true` using the test key pair in `src/test/resources/auth/` (ES512 JWT, claims `iss=carbone-user`, `aud=carbone-ee`);
+`integration/CarboneCloudSpec` runs against api.carbone.io when `CARBONE_TEST_API_KEY` is set (a _test_ key: pdf output only,
+templates auto-expire after 30 days) and is skipped otherwise; never commit a key; the docx fixture is `src/test/resources/templates/invoice.docx`
 (built by hand, contains `{d.number}`, `{d.customer.name}`, `:formatC`, `:convEnum`). Example:
 
 ```kotlin

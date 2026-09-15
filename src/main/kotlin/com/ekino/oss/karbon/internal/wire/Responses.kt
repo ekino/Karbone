@@ -65,6 +65,7 @@ internal object Responses {
         response.status,
         root.errorMessage(),
         response.bodyAsText().take(MAX_BODY_EXCERPT),
+        root.errorCode(),
       )
     }
     return root["data"] ?: JsonObject(emptyMap())
@@ -89,6 +90,7 @@ internal object Responses {
         response.status,
         root?.errorMessage() ?: "Expected a file, got JSON (success=$success)",
         response.bodyAsText().take(MAX_BODY_EXCERPT),
+        root?.errorCode(),
       )
     )
   }
@@ -100,41 +102,29 @@ internal object Responses {
     render: Boolean,
   ): KarbonError.Api {
     val message = root?.errorMessage()
+    val code = root?.errorCode()
+    val excerpt = response.bodyAsText().take(MAX_BODY_EXCERPT)
     // carbone-ee answers HTTP 500 "Error: Invalid JSON Web Token: ..." to a malformed bearer token;
     // that is an auth failure.
     if (message?.contains(JWT_ERROR_MARKER, ignoreCase = true) == true)
-      return KarbonError.Unauthorized(message, response.status)
+      return KarbonError.Unauthorized(message, response.status, code)
     return when (response.status) {
-      KarbonError.HTTP_UNAUTHORIZED -> KarbonError.Unauthorized(message)
+      KarbonError.HTTP_UNAUTHORIZED -> KarbonError.Unauthorized(message, code = code)
       KarbonError.HTTP_NOT_FOUND ->
         when (hint) {
-          is NotFoundHint.Template -> KarbonError.TemplateNotFound(hint.id, message)
-          is NotFoundHint.Render -> KarbonError.RenderNotFound(hint.id, message)
-          NotFoundHint.None ->
-            KarbonError.Unexpected(
-              response.status,
-              message,
-              response.bodyAsText().take(MAX_BODY_EXCERPT),
-            )
+          is NotFoundHint.Template -> KarbonError.TemplateNotFound(hint.id, message, code = code)
+          is NotFoundHint.Render -> KarbonError.RenderNotFound(hint.id, message, code = code)
+          NotFoundHint.None -> KarbonError.Unexpected(response.status, message, excerpt, code)
         }
-      KarbonError.HTTP_PAYLOAD_TOO_LARGE -> KarbonError.PayloadTooLarge(message)
-      KarbonError.HTTP_UNSUPPORTED_MEDIA -> KarbonError.UnsupportedTemplateFormat(message)
+      KarbonError.HTTP_PAYLOAD_TOO_LARGE -> KarbonError.PayloadTooLarge(message, code = code)
+      KarbonError.HTTP_UNSUPPORTED_MEDIA ->
+        KarbonError.UnsupportedTemplateFormat(message, code = code)
       HTTP_BAD_REQUEST,
-      HTTP_UNPROCESSABLE -> KarbonError.BadRequest(response.status, message)
+      HTTP_UNPROCESSABLE -> KarbonError.BadRequest(response.status, message, code)
       HTTP_SERVER_ERROR ->
-        if (render) KarbonError.RenderFailed(message)
-        else
-          KarbonError.Unexpected(
-            response.status,
-            message,
-            response.bodyAsText().take(MAX_BODY_EXCERPT),
-          )
-      else ->
-        KarbonError.Unexpected(
-          response.status,
-          message,
-          response.bodyAsText().take(MAX_BODY_EXCERPT),
-        )
+        if (render) KarbonError.RenderFailed(message, code = code)
+        else KarbonError.Unexpected(response.status, message, excerpt, code)
+      else -> KarbonError.Unexpected(response.status, message, excerpt, code)
     }
   }
 
@@ -148,6 +138,8 @@ internal object Responses {
       null
     }
   }
+
+  private fun JsonObject.errorCode(): String? = (this["code"] as? JsonPrimitive)?.contentOrNull
 
   private fun JsonObject.errorMessage(): String? =
     (this["error"] as? JsonPrimitive)?.contentOrNull
