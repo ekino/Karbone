@@ -117,7 +117,9 @@ mavenPublishing {
   )
 
   publishToMavenCentral(automaticRelease = true)
-  signAllPublications()
+  // Signing keys are only available in the GitHub release workflow; GitLab (internal review)
+  // publishes unsigned.
+  if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
 
   pom {
     name.set("Karbone")
@@ -145,6 +147,27 @@ mavenPublishing {
       connection.set("scm:git:git://github.com/ekino/Karbone.git")
       developerConnection.set("scm:git:ssh://github.com/ekino/Karbone.git")
       url.set("https://github.com/ekino/Karbone")
+    }
+  }
+}
+
+// Internal review: publish to the GitLab Package Registry of the project running the pipeline
+// (Job-Token auth).
+val gitlabApiUrl = System.getenv("CI_API_V4_URL")
+val gitlabProjectId = System.getenv("CI_PROJECT_ID")
+
+if (gitlabApiUrl != null && gitlabProjectId != null) {
+  publishing {
+    repositories {
+      maven {
+        name = "GitLab"
+        url = uri("$gitlabApiUrl/projects/$gitlabProjectId/packages/maven")
+        credentials(HttpHeaderCredentials::class) {
+          name = "Job-Token"
+          value = System.getenv("CI_JOB_TOKEN")
+        }
+        authentication { create<HttpHeaderAuthentication>("header") }
+      }
     }
   }
 }

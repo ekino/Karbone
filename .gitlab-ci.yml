@@ -68,3 +68,21 @@ pages:
   artifacts:
     paths:
       - public
+
+# Internal review: publish to this project's GitLab Package Registry.
+# - on a v* tag: the release version (v0.1.0 -> 0.1.0)
+# - on main: manual job, publishes the localVersion snapshot from gradle.properties
+publish:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends nodejs npm > /dev/null
+  script:
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then VERSION="${CI_COMMIT_TAG#v}"; else VERSION=$(grep '^localVersion=' gradle.properties | cut -d= -f2); fi
+      echo "Publishing com.ekino.oss:karbone:$VERSION to the GitLab Package Registry"
+      chmod +x ./gradlew
+      ./gradlew publishAllPublicationsToGitLabRepository -PlocalVersion="$VERSION" --console=plain
