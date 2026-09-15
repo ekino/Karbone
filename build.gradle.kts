@@ -82,7 +82,7 @@ spotless {
 
   kotlin {
     target("**/*.kt")
-    targetExclude("**/build/generated/**")
+    targetExclude("**/build/**", ".gradle-home/**")
     licenseHeader(licenseHeaderText)
     ktfmt().googleStyle()
     trimTrailingWhitespace()
@@ -90,6 +90,7 @@ spotless {
   }
 
   kotlinGradle {
+    target("*.gradle.kts")
     ktfmt().googleStyle().configure { it.setRemoveUnusedImports(true) }
     trimTrailingWhitespace()
     endWithNewline()
@@ -97,12 +98,13 @@ spotless {
 
   format("markdown") {
     target("**/*.md")
-    targetExclude("**/build/**")
+    targetExclude("**/build/**", ".gradle-home/**", "ClaudeContexts/**")
     prettier().configFile(rootProject.file(".prettierrc.json"))
   }
 
   yaml {
     target("**/*.yml", "**/*.yaml")
+    targetExclude("**/build/**", ".gradle-home/**", "ClaudeContexts/**")
     prettier().configFile(rootProject.file(".prettierrc.json"))
   }
 }

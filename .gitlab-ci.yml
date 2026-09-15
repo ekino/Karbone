@@ -31,6 +31,10 @@ cache:
     - .gradle-home/wrapper
     - .gradle-home/jdks
 
+stages:
+  - build
+  - deploy
+
 build:
   stage: build
   before_script:
@@ -46,3 +50,21 @@ build:
       junit: build/test-results/test/TEST-*.xml
     paths:
       - build/reports/
+
+# GitLab Pages: the Quarkdown documentation site, published from main only.
+pages:
+  stage: deploy
+  variables:
+    QUARKDOWN_VERSION: "2.6.0"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl unzip > /dev/null
+    - curl -fsSL -o /tmp/quarkdown.zip "https://github.com/iamgio/quarkdown/releases/download/v${QUARKDOWN_VERSION}/quarkdown-linux-x64.zip"
+    - unzip -q /tmp/quarkdown.zip -d /tmp/qd
+  script:
+    - /tmp/qd/quarkdown/bin/quarkdown c docs/main.qd -o build/docs --clean
+    - rm -rf public && mv build/docs/Karbone public
+  artifacts:
+    paths:
+      - public
