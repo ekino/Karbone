@@ -66,7 +66,7 @@ HTTP 400 (not JSON / bad metadata / bad Content-Type), 401, 404 (template or ren
 
 ### Unverified / to confirm against a live key
 
-- Rendered file retention (1 hour, single download) [doc, moderate confidence].
+- Rendered file retention of 1 hour [doc, moderate confidence]. Single download is verified: a second `GET /render/{renderId}` answers 404 (cloud 5.14.4).
 - Sync render timeout ~60 s, async ~5 min [doc, moderate confidence].
 - Exact size limits and rate limits: not published in the spec.
 - Behaviour of `carbone-version` on on-premise.

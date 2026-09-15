@@ -30,19 +30,19 @@ Rejected: Jackson — heavier, and would force a Jackson version onto consumers.
 ## 2026-09-15 — Hash-first render from bytes is in the initial scope
 
 Chosen: `render(TemplateSource.bytes|path, data, options)` computes SHA-256 locally, tries `POST /render/{sha}`, uploads on 404 and retries (Node/Java SDK flow). Only valid for legacy (non-versioned) template ids.
-Rejected: leaving it to consumers — iperia's Caffeine cache + reference-counted `deleteTemplate` exists only because the app has to remember upload results; the primitive makes that mechanism unnecessary. Template purge stays an app-side job via `templates.delete`.
+Rejected: leaving it to consumers — the consumer app's Caffeine cache + reference-counted `deleteTemplate` exists only because the app has to remember upload results; the primitive makes that mechanism unnecessary. Template purge stays an app-side job via `templates.delete`.
 
 ## 2026-09-15 — Errors with Arrow (`Raise` + `Either`), exceptions only in the Java facade
 
-Chosen: `sealed interface KarboneError` as values (Unauthorized, TemplateNotFound, RenderNotFound, PayloadTooLarge, UnsupportedFormat, InvalidRequest, RenderFailed, Transport, Serialization), always carrying the raw API `error` text.
+Chosen: `sealed interface KarboneError` as values (`Unauthorized`, `TemplateNotFound`, `RenderNotFound`, `PayloadTooLarge`, `UnsupportedTemplateFormat`, `BadRequest`, `RenderFailed`, `Unexpected` (API side); `InvalidRequest`, `Transport`, `Serialization`, `TemplateRead` (client side)), API errors always carrying the raw `error` text and `code`.
 Primary Kotlin API: `context(_: Raise<KarboneError>) suspend fun ...`; `Either` obtained via `either { }`. `KarboneBlocking` facade for Java throws `KarboneException(error)`. `arrow-core` as an `api` dependency.
-Context parameters are stable in Kotlin 2.4 (iperia uses them on 2.4.20 without any compiler flag).
+Context parameters are stable in Kotlin 2.4 (the primary consumer app uses them on 2.4.20 without any compiler flag).
 Rejected: exceptions-only public API (loses typed composition for the Arrow-based main consumer); Arrow kept internal only (would still be transitive and would hide the main benefit).
 
 ## 2026-09-15 — No business-rule engine in the SDK (for now)
 
 Chosen: request invariants (hardRefresh needs convertTo, batch needs batchSplitBy + webhook, converter only for pdf, Watermarks ≤ 5, Quality 1-100, list limit 1-100, multipart file last) enforced with `ensure` in builders/constructors raising `KarboneError.InvalidRequest`.
-Rejected: reusing iperia's `service/rules` engine — not a library yet, disproportionate for a client SDK. Revisit as an optional "pre-flight validation against edition/version capabilities" once the engine is extracted.
+Rejected: reusing the primary consumer app's `service/rules` engine — not a library yet, disproportionate for a client SDK. Revisit as an optional "pre-flight validation against edition/version capabilities" once the engine is extracted.
 
 ## 2026-09-15 — `KarboneClient` interface + `FakeKarbone` shipped in the main artifact
 
@@ -66,3 +66,7 @@ Chosen: ES512 public key + 40-year JWT generated with the image's `generate-keys
 - In versioned mode `versionId` != SHA-256(file) (metadata enters the hash). Hash-first render therefore stays limited to non-versioned uploads.
 - Test-key templates expire after 30 days (`expireAt` set server-side); rendered files are single-download (second GET → 404 RenderNotFound).
 - Webhooks not exercised: they need a public callback URL. Left for a later manual check.
+
+## 2026-09-15 — Temporary "Development notes" section in the docs
+Chosen: the working notes are published under `docs/dev/` (nav isolated in `docs/_dev-nav.qd`) for the internal GitLab review only, anonymized (no local paths, no consumer repo internals, synthetic examples).
+Obligation: delete `docs/dev/` and the `.include {_dev-nav.qd}` line before any public deployment. `publish.yml` refuses to release while `docs/dev/` exists.

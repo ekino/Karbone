@@ -36,6 +36,12 @@ jobs:
         with:
           quarkdown-version: "2.6.0"
 
+      - name: Refuse to deploy the temporary development docs publicly
+        run: |
+          if [ -d docs/dev ] || grep -q "_dev-nav" docs/_nav.qd; then
+            echo "docs/dev/ (internal review notes) must be removed before deploying to GitHub Pages"; exit 1
+          fi
+
       - name: Build site with Quarkdown
         run: quarkdown c docs/main.qd -o build/docs --clean
 

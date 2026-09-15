@@ -48,6 +48,12 @@ jobs:
           echo "artifact_version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing com.ekino.oss:karbone:$VERSION"
 
+      - name: Refuse to release with the temporary development docs
+        run: |
+          if [ -d docs/dev ] || grep -q "_dev-nav" docs/_nav.qd; then
+            echo "docs/dev/ (internal review notes) must be removed before a public release"; exit 1
+          fi
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 

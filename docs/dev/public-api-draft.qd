@@ -173,7 +173,7 @@ data class RenderOptions(
   val complement: JsonElement? = null,
   val variableStr: String? = null,
   val reportName: String? = null,
-  val enum: JsonObject? = null,               // {"FUNDER_NAME": {"APNI ASSMAT": "APNI"}}
+  val enum: JsonObject? = null,               // {"STATUS": {"PAID": "Payée"}}
   val translations: JsonObject? = null,
   val currency: CurrencyConversion? = null,   // source, target, rates
   val hardRefresh: Boolean = false,           // requires convertTo
@@ -284,7 +284,7 @@ class KarboneBlocking internal constructor(private val karbone: Karbone) {
 }
 ```
 
-Usage from Kotlin (iperia-like):
+Usage from Kotlin (consumer-like):
 
 ```kotlin
 val karbone = Karbone.onPremise("http://localhost:4000", token = props.accessToken)

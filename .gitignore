@@ -44,4 +44,7 @@ bin/
 .vscode/
 
 ### Mac OS ###
-.DS_Store.gradle-home/
+.DS_Store
+
+### CI Gradle home (see .gitlab-ci.yml) ###
+.gradle-home/

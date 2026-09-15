@@ -11,14 +11,14 @@ Goal: complete, idiomatic Kotlin client for Carbone API v5 (cloud and on-premise
 
 ## Primary use case
 
-iperia-back (see IPERIA-USAGE.md): self-hosted Community edition, JWT auth optional, docx → PDF/A-3, three operations (upload/render/delete), `data` is an arbitrary object serialized by the app. The SDK must serve this on-premise scenario first-class, cloud second.
+the primary consumer app (see [Primary use case](primary-use-case.qd)): self-hosted Community edition, JWT auth optional, docx → PDF/A-3, three operations (upload/render/delete), `data` is an arbitrary object serialized by the app. The SDK must serve this on-premise scenario first-class, cloud second.
 
 ## Principles
 
 1. **Immutable per-instance configuration**: `Karbone(apiKey, baseUrl, apiVersion, timeouts, ...)`. No global state. DI-friendly (plain constructor + builder for Java).
 2. **Coroutines first**: all I/O methods are `suspend` and `Raise`-based. A thin blocking, throwing facade (`KarboneBlocking` / `.blocking()`) for Java and non-coroutine callers.
-3. **Typed request models**: `RenderOptions` data class + DSL builder mirroring the spec 1:1 (`convertTo` as sealed `OutputFormat` with typed `PdfOptions`, `ImageOptions`, `CsvOptions`). `data` accepted as `JsonElement`, `@Serializable` object (with the caller's `Json`/serializer), or a raw JSON string — the raw-string path is required so Jackson-based apps (iperia) can keep their serializer.
-4. **Typed errors with Arrow**: `sealed interface KarboneError` (values): `Unauthorized`, `TemplateNotFound`, `RenderNotFound`, `PayloadTooLarge`, `UnsupportedFormat`, `InvalidRequest`, `RenderFailed`, `Transport(cause)`, `Serialization`; API errors carry `status` and the raw `error` text. Primary API is `context(_: Raise<KarboneError>) suspend fun`; `Either` via `either { }`. Java facade `KarboneBlocking` throws `KarboneException(error)`. Request invariants enforced with `ensure` → `InvalidRequest`.
+3. **Typed request models**: `RenderOptions` data class + DSL builder mirroring the spec 1:1 (`convertTo` as sealed `OutputFormat` with typed `PdfOptions`, `ImageOptions`, `CsvOptions`). `data` accepted as `JsonElement`, `@Serializable` object (with the caller's `Json`/serializer), or a raw JSON string — the raw-string path is required so Jackson-based apps can keep their serializer.
+4. **Typed errors with Arrow**: `sealed interface KarboneError` (values): `Unauthorized`, `TemplateNotFound`, `RenderNotFound`, `PayloadTooLarge`, `UnsupportedTemplateFormat`, `BadRequest`, `RenderFailed`, `Unexpected` (API side); `InvalidRequest`, `Transport`, `Serialization`, `TemplateRead` (client side); API errors carry `status`, `code` and the raw `error` text. Primary API is `context(_: Raise<KarboneError>) suspend fun`; `Either` via `either { }`. Java facade `KarboneBlocking` throws `KarboneException(error)`. Request invariants enforced with `ensure` → `InvalidRequest`.
 5. **Uniform template input**: `TemplateSource` sealed type — `Path`, `Bytes`, `InputStream/ByteReadChannel`, `Id(String)`. Local SHA-256 computed for Bytes/Path so the hash-first / upload-on-404 flow works fully in memory.
 6. **`carbone-version`**: sent by default (5) when targeting the cloud, nullable/omitted for on-premise where the header does not apply. Configurable per client, overridable per call.
 7. **Lean dependency footprint**: JDK HttpClient, kotlinx.serialization, arrow-core (`api`), kotlinx-coroutines. Nothing else.
@@ -48,20 +48,23 @@ karbone.convert(TemplateSource.bytes(docx), to = OutputFormat.Pdf)   // /render/
 karbone.status(): ApiStatus(version, message)
 ```
 
-## Decided (see DECISIONS.md)
+## Decided (see the [decision log](decisions.qd))
 
 - HTTP: `java.net.http.HttpClient` behind internal `HttpTransport`. Serialization: kotlinx.serialization.
 
-## Decisions still open
+## Settled since (see the decision log)
 
-- **Blocking facade**: Java-friendly wrapper in the same module vs separate `karbone-blocking` module.
-- **Retries**: none by default, opt-in policy on transport errors (Node SDK retries once on connection reset).
+- **Blocking facade**: shipped in the same module (`blocking/KarboneBlocking`).
+- **Retries**: `RetryPolicy.None` by default, opt-in `RetryPolicy.OnTransportError(maxAttempts, backoff)` on transport errors only.
+
+## Still open
+
 - **Module layout**: single module now; split `core` / `ktor` / `spring-boot-starter` only when needed.
 
 ## Test support
 
-Ship a `karbone-test` (or `com.ekino.oss.karbone.test` package) with an in-memory `FakeKarbone` implementing the public client interface, so consumers unit-test without mocking internals. Integration tests of Karbone itself run against `carbone/carbone-ee:full-<version>-fonts` via Testcontainers (Community features, `CARBONE_AUTHENTICATION` on and off).
+Shipped as `com.ekino.oss.karbone.testing.FakeKarbone` in the main artifact (a separate module was rejected, see the decision log). Integration tests of Karbone itself run against `carbone/carbone-ee:full-<version>-fonts` via Testcontainers, with and without `CARBONE_AUTHENTICATION`, plus Carbone Cloud with a test key.
 
 ## Concrete surface
 
-See PUBLIC-API.kt.md (draft v1) for the Kotlin signatures, models, errors and Java facade.
+See the [public API draft v1](public-api-draft.qd) for the Kotlin signatures, models, errors and Java facade.

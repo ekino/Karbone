@@ -1,17 +1,17 @@
-.docname {Primary use case: iperia-back}
+.docname {Primary use case}
 .include {docs}
 
-# Primary use case: iperia-back
+# Primary use case
 
 > **Temporary development section.** These pages are the working notes that shaped Karbone, published as-is for the internal
 > review. They will be removed or rewritten before the public release; the reference is the code and the guides.
 
 
-Repo: /Users/benoit.havret/Projects/iperia/iperia-back (Spring Boot, Kotlin). Verified on CarboneClient.kt and docker-compose.yml.
+The primary consumer is an internal Spring Boot / Kotlin application (referred to as "the app" below). Findings were verified on its Carbone client wrapper and its docker-compose file.
 
 ## Deployment (free on-premise, Community features)
 
-- Self-hosted `carbone/carbone-ee:full-5.8.0-fonts` on port 4000 (docker-compose.yml:21-33, CI service container ci/gitlab-ci.main.kts:759-766).
+- Self-hosted `carbone/carbone-ee:full-5.8.0-fonts` on port 4000 (docker-compose locally, a CI service container in the pipeline).
   Same image for Community and Enterprise; edition decided by `CARBONE_LICENSE` (absent here → Community features).
 - Env: `CARBONE_AUTHENTICATION=true` + `CARBONE_AUTHENTICATION_PUBLIC_KEY` (JWT auth, ES512), `CARBONE_TEMPLATE_MANAGEMENT=true`, `CARBONE_LANG=fr`, `CARBONE_TIMEZONE=Europe/Paris`, `CARBONE_EE_STUDIO=true`, `CARBONE_STUDIO_USER`.
 - App config: `carbone.client.base-url` (default http://localhost:4000) and `carbone.client.access-token` (optional: token absent → no Authorization header). No `carbone-version` header (not applicable on-premise per Carbone docs).
@@ -19,16 +19,16 @@ Repo: /Users/benoit.havret/Projects/iperia/iperia-back (Spring Boot, Kotlin). Ve
 
 ## Integration
 
-- `io.carbone:carbone-sdk:2.0.4` wrapped by `CarboneClient.kt` (service/file/template/carbone). Uses only:
+- `io.carbone:carbone-sdk:2.0.4` wrapped by a thin `CarboneClient` class. Uses only:
   `addTemplate(absolutePath)`, `render(jsonString, templateId)` (SDK does POST /render + GET /render/{renderId}), `deleteTemplate(id)`.
-- Render body always: `{ data: <any object>, enum: {FUNDER_NAME: {...}} (deprecated legacy mapping), convertTo: {formatName:"pdf", formatOptions:{SelectPdfVersion:"3"}} }` → **PDF/A-3 only**.
+- Render body always: `{ data: <any object>, enum: {<legacy business mapping>}, convertTo: {formatName:"pdf", formatOptions:{SelectPdfVersion:"3"}} }` → **PDF/A-3 only**.
   Note `SelectPdfVersion` is sent as the string "3" (spec says integer) — works today, SDK should send an integer.
 - Body serialized with Jackson (`jacksonObjectMapper`), data is an arbitrary `DATA : Any`.
 
 ## Template lifecycle
 
-- Templates are `.docx` stored in OneDrive → downloaded to a temp file → `addTemplate(path)` → id (server SHA-256) kept in a Caffeine cache (1 h, 50 entries) keyed by DocumentTemplate id.
-- On cache eviction, a reference-counting listener deletes the remote template only if no other DocumentTemplate maps to the same id (commit 3795a76bd8). Cache invalidated on template update/delete events.
+- Templates are `.docx` stored in a document store → downloaded to a temp file → `addTemplate(path)` → id (server SHA-256) kept in a Caffeine cache (1 h, 50 entries) keyed by template entity id.
+- On cache eviction, a reference-counting listener deletes the remote template only if no other DocumentTemplate maps to the same id (this logic was buggy once and had to be fixed). Cache invalidated on template update/delete events.
 - Only `renderingEngine == CARBONE && generationType == PDF` go through Carbone; legacy XDocReport engine coexists.
 
 ## Render consumption
@@ -45,8 +45,8 @@ Repo: /Users/benoit.havret/Projects/iperia/iperia-back (Spring Boot, Kotlin). Ve
 
 1. On-premise first: configurable base URL, **optional** auth token (JWT bearer), no `carbone-version` requirement (send it only when targeting cloud, or make it nullable).
 2. `templates.upload(Path | ByteArray | InputStream)` returning the id; `templates.delete(id)`; `render(id, data, options)` returning bytes + filename, sync, hiding the renderId round-trip.
-3. `data` as any serializable object: kotlinx `@Serializable` instance, `JsonElement`, `Map`, or a pre-serialized JSON string (iperia serializes with Jackson today → accept a raw JSON string/`JsonElement` escape hatch so Jackson users are not forced into kotlinx annotations).
+3. `data` as any serializable object: kotlinx `@Serializable` instance, `JsonElement`, `Map`, or a pre-serialized JSON string (the app serializes with Jackson today → accept a raw JSON string/`JsonElement` escape hatch so Jackson users are not forced into kotlinx annotations).
 4. Typed `convertTo` with `PdfOptions(selectPdfVersion = PdfVersion.PDF_A_3)` etc.; `enum`, `lang`, `timezone` per call.
 5. Typed errors (template not found vs render failure vs transport) and configurable timeouts; quiet, redacted logging.
 6. A test double (`FakeKarbone` / in-memory implementation of the client interface) so consumers can unit test without MockK on internals.
-7. Nice-to-have for iperia: hash-first render from bytes (skip the temp file), and a reusable "template cache with reference counting" helper is NOT SDK scope — keep it in the app.
+7. Nice-to-have for the app: hash-first render from bytes (skip the temp file); a reusable "template cache with reference counting" helper is NOT SDK scope — keep it in the app.
