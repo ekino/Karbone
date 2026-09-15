@@ -2,6 +2,10 @@
 
 All notable changes to Karbone are documented here. Detailed notes for each release live in `release-notes/`.
 
+## Unreleased (0.1.2)
+
+- Blocking facade over `KarboneClient`: `KarboneClient.blocking()` and `KarboneBlocking.of(client)`, so `FakeKarbone` fits behind it.
+
 ## 0.1.1 — 2026-09-15
 
 - Retried transport failures are logged at `WARN`.

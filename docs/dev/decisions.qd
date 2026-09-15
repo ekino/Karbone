@@ -70,3 +70,10 @@ Chosen: ES512 public key + 40-year JWT generated with the image's `generate-keys
 ## 2026-09-15 — Temporary "Development notes" section in the docs
 Chosen: the working notes are published under `docs/dev/` (nav isolated in `docs/_dev-nav.qd`) for the internal GitLab review only, anonymized (no local paths, no consumer repo internals, synthetic examples).
 Obligation: delete `docs/dev/` and the `.include {_dev-nav.qd}` line before any public deployment. `publish.yml` refuses to release while `docs/dev/` exists.
+
+## 2026-09-15 — Blocking facade over `KarboneClient`, exposed as an extension plus `KarboneBlocking.of`
+Chosen: `KarboneBlocking` / `TemplatesBlocking` / `RendersBlocking` take a `KarboneClient`; `fun KarboneClient.blocking()` (extension in
+`com.ekino.oss.karbone.blocking`) and `@JvmStatic KarboneBlocking.of(client)` for Java; `Karbone.blocking()` delegates to it. A consumer can wrap
+`FakeKarbone` in the same facade instead of re-implementing `runBlocking { either { } }` → `KarboneException` (what the primary consumer app does today).
+Rejected: a default `blocking()` method on the `KarboneClient` interface — it would make the core interface depend on the blocking package and
+force every implementation (fakes included) to know about it; the extension keeps `KarboneClient` minimal and is discoverable through the package import.

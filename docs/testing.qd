@@ -84,3 +84,19 @@ Karbone's own integration tests (`CarboneContainerSpec`, `CarboneAuthContainerSp
 via [Testcontainers](https://testcontainers.com/), covering both authentication-disabled and JWT-authenticated setups. They
 are skipped automatically when Docker is not available, and are a good reference for exact request/response shapes if you
 need to go beyond what `FakeKarbone` simulates.
+
+## Blocking code under test
+
+Code written against `KarboneBlocking` is tested the same way: the facade is built over `KarboneClient`, so a fake slips in.
+
+```kotlin
+val fake = FakeKarbone()
+val service = InvoiceService(fake.blocking())          // or KarboneBlocking.of(fake) from Java
+
+service.generate(invoice)
+
+fake.calls.filterIsInstance<FakeKarbone.Call.Render>() shouldHaveSize 1
+
+fake.failNextWith(KarboneError.Unauthorized("expired"))
+shouldThrow<KarboneException> { service.generate(invoice) }.error.shouldBeInstanceOf<KarboneError.Unauthorized>()
+```

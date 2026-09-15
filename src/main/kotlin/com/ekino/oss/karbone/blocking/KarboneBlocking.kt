@@ -4,7 +4,7 @@
 package com.ekino.oss.karbone.blocking
 
 import arrow.core.raise.either
-import com.ekino.oss.karbone.Karbone
+import com.ekino.oss.karbone.KarboneClient
 import com.ekino.oss.karbone.KarboneError
 import com.ekino.oss.karbone.KarboneException
 import com.ekino.oss.karbone.model.ApiStatus
@@ -31,15 +31,28 @@ import kotlinx.coroutines.runBlocking
  * Blocking facade: every call runs to completion on the calling thread and throws
  * [KarboneException] on failure.
  */
-public class KarboneBlocking internal constructor(private val karbone: Karbone) {
+public class KarboneBlocking internal constructor(private val karbone: KarboneClient) {
 
   public val templates: TemplatesBlocking = TemplatesBlocking(karbone)
   public val renders: RendersBlocking = RendersBlocking(karbone)
 
   public fun status(): ApiStatus = call { karbone.status() }
+
+  public companion object {
+    /**
+     * Java entry point: `KarboneBlocking.of(client)`. Kotlin callers use [KarboneClient.blocking].
+     */
+    @JvmStatic public fun of(client: KarboneClient): KarboneBlocking = KarboneBlocking(client)
+  }
 }
 
-public class TemplatesBlocking internal constructor(private val karbone: Karbone) {
+/**
+ * Blocking, exception-based view of any [KarboneClient]: the real [com.ekino.oss.karbone.Karbone]
+ * or a test double.
+ */
+public fun KarboneClient.blocking(): KarboneBlocking = KarboneBlocking(this)
+
+public class TemplatesBlocking internal constructor(private val karbone: KarboneClient) {
   @JvmOverloads
   public fun upload(
     source: TemplateSource.Content,
@@ -69,7 +82,7 @@ public class TemplatesBlocking internal constructor(private val karbone: Karbone
   public fun tags(): List<String> = call { karbone.templates.tags() }
 }
 
-public class RendersBlocking internal constructor(private val karbone: Karbone) {
+public class RendersBlocking internal constructor(private val karbone: KarboneClient) {
   @JvmOverloads
   public fun render(
     template: TemplateSource,

@@ -91,8 +91,9 @@ hash. `render` returns a `RenderedDocument` with `content: ByteArray`, `fileName
 
 ## Java / blocking callers
 
-Java has no coroutines and no `Raise`. `Karbone.blocking()` returns a synchronous facade where every call runs to completion on
-the calling thread and throws `KarboneException` on failure:
+Java has no coroutines and no `Raise`. `Karbone.blocking()` (Kotlin: any `KarboneClient.blocking()`, Java: `KarboneBlocking.of(client)`)
+returns a synchronous facade where every call runs to completion on the calling thread and throws `KarboneException` on failure.
+Because it works over the `KarboneClient` interface, the same facade wraps `FakeKarbone` in tests:
 
 ```java
 import com.ekino.oss.karbone.Karbone;

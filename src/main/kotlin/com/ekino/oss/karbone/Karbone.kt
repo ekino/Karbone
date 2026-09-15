@@ -46,7 +46,7 @@ internal constructor(public val config: KarboneConfig, transport: HttpTransport)
   }
 
   /** Synchronous, exception-based facade for Java and non-coroutine code. */
-  public fun blocking(): KarboneBlocking = KarboneBlocking(this)
+  public fun blocking(): KarboneBlocking = KarboneBlocking.of(this)
 
   public companion object {
     /** Carbone Cloud with an API key. Sends `carbone-version: 5`. */
