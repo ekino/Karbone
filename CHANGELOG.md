@@ -2,9 +2,10 @@
 
 All notable changes to Karbone are documented here. Detailed notes for each release live in `release-notes/`.
 
-## Unreleased (0.1.2)
+## 0.1.2 — 2026-09-15
 
 - Blocking facade over `KarboneClient`: `KarboneClient.blocking()` and `KarboneBlocking.of(client)`, so `FakeKarbone` fits behind it.
+- `Karbone.config` removed from the public API.
 
 ## 0.1.1 — 2026-09-15
 

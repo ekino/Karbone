@@ -23,8 +23,8 @@ import com.ekino.oss.karbone.model.ApiStatus
  *
  * Build one with [cloud] or [onPremise]; instances are immutable and thread-safe.
  */
-public class Karbone
-internal constructor(public val config: KarboneConfig, transport: HttpTransport) : KarboneClient {
+public class Karbone internal constructor(config: KarboneConfig, transport: HttpTransport) :
+  KarboneClient {
 
   private val calls = Calls(config, transport)
 

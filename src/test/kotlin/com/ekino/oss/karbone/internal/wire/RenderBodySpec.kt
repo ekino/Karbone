@@ -46,10 +46,9 @@ private fun buildBody(
   options: RenderOptions = RenderOptions.None,
   template: ByteArray? = null,
 ): JsonObject {
-  val result =
-    either<KarboneError, String> {
-      RenderBody.build(data, options, KarboneConfig.DefaultJson, template)
-    }
+  val result = either {
+    RenderBody.build(data, options, KarboneConfig.DefaultJson, template)
+  }
   val right = result.shouldBeInstanceOf<Either.Right<String>>()
   return parser.parseToJsonElement(right.value).jsonObject
 }
@@ -59,10 +58,9 @@ private fun buildError(
   options: RenderOptions = RenderOptions.None,
   template: ByteArray? = null,
 ): KarboneError {
-  val result =
-    either<KarboneError, String> {
-      RenderBody.build(data, options, KarboneConfig.DefaultJson, template)
-    }
+  val result = either {
+    RenderBody.build(data, options, KarboneConfig.DefaultJson, template)
+  }
   val left = result.shouldBeInstanceOf<Either.Left<KarboneError>>()
   return left.value
 }

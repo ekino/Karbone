@@ -223,6 +223,7 @@ public class FakeKarbone(
       record(Call.List(query))
       val all =
         store.values
+          .asSequence()
           .filter { query.id == null || it.id == query.id }
           .filter { query.category == null || it.options.category == query.category }
           .filter {
@@ -232,6 +233,7 @@ public class FakeKarbone(
           }
           .sortedBy { it.createdAt }
           .map { it.info() }
+          .toList()
       val offset = query.cursor?.toIntOrNull() ?: 0
       val items = all.drop(offset).take(query.limit)
       val next = offset + items.size
@@ -244,8 +246,7 @@ public class FakeKarbone(
 
     context(_: Raise<KarboneError>)
     override fun listAll(query: ListTemplatesQuery): Flow<TemplateInfo> {
-      val raise = contextOf<Raise<KarboneError>>()
-      return with(raise) { store.values.sortedBy { it.createdAt }.map { it.info() } }.asFlow()
+      return (store.values.sortedBy { it.createdAt }.map { it.info() }).asFlow()
     }
 
     context(_: Raise<KarboneError>)

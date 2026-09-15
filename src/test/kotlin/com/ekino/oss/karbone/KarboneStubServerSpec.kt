@@ -92,7 +92,7 @@ private class StubServer {
 
   init {
     server.createContext("/") { exchange ->
-      try {
+      exchange.use { exchange ->
         val body = exchange.requestBody.readBytes()
         requests.add(
           Recorded(
@@ -104,8 +104,6 @@ private class StubServer {
           )
         )
         handler.handle(exchange)
-      } finally {
-        exchange.close()
       }
     }
     server.start()
@@ -137,7 +135,7 @@ class KarboneStubServerSpec :
     should("parse status() from a plain JSON envelope") {
       stub.handler = HttpHandler { ex -> ex.respondJson(200, STATUS_BODY) }
       val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-      val result = either<KarboneError, ApiStatus> { karbone.status() }
+      val result = either { karbone.status() }
       result.shouldBeInstanceOf<Either.Right<ApiStatus>>().value shouldBe
         ApiStatus(true, 200, "OK", "5.8.0")
     }
@@ -148,7 +146,7 @@ class KarboneStubServerSpec :
       ) {
         stub.handler = HttpHandler { ex -> ex.respondJson(200, STATUS_BODY) }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        either<KarboneError, ApiStatus> { karbone.status() }
+        either { karbone.status() }
         val request = stub.requests.single()
         request.header("Authorization") shouldBe "Bearer tok"
         request.header("carbone-version").shouldBeNull()
@@ -158,14 +156,14 @@ class KarboneStubServerSpec :
       should("send carbone-version: 5 for cloud clients") {
         stub.handler = HttpHandler { ex -> ex.respondJson(200, STATUS_BODY) }
         val karbone = Karbone.cloud("api-key") { baseUrl(stub.baseUrl) }
-        either<KarboneError, ApiStatus> { karbone.status() }
+        either { karbone.status() }
         stub.requests.single().header("carbone-version") shouldBe "5"
       }
 
       should("send no Authorization header when the token is null") {
         stub.handler = HttpHandler { ex -> ex.respondJson(200, STATUS_BODY) }
         val karbone = Karbone.onPremise(stub.baseUrl, token = null)
-        either<KarboneError, ApiStatus> { karbone.status() }
+        either { karbone.status() }
         stub.requests.single().header("Authorization").shouldBeNull()
       }
     }
@@ -178,13 +176,12 @@ class KarboneStubServerSpec :
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
         val bytes = "hello docx content".toByteArray()
-        val result =
-          either<KarboneError, UploadedTemplate> {
-            karbone.templates.upload(
-              TemplateSource.bytes(bytes, "invoice.docx"),
-              UploadOptions(name = "x"),
-            )
-          }
+        val result = either {
+          karbone.templates.upload(
+            TemplateSource.bytes(bytes, "invoice.docx"),
+            UploadOptions(name = "x"),
+          )
+        }
         val uploaded = result.shouldBeInstanceOf<Either.Right<UploadedTemplate>>().value
         uploaded.shouldBeInstanceOf<UploadedTemplate.Legacy>()
         uploaded.id shouldBe TemplateId(sha)
@@ -204,10 +201,9 @@ class KarboneStubServerSpec :
           )
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, UploadedTemplate> {
-            karbone.templates.upload(TemplateSource.bytes("x".toByteArray(), "t.docx"))
-          }
+        val result = either {
+          karbone.templates.upload(TemplateSource.bytes("x".toByteArray(), "t.docx"))
+        }
         val uploaded = result.shouldBeInstanceOf<Either.Right<UploadedTemplate>>().value
         val versioned = uploaded.shouldBeInstanceOf<UploadedTemplate.Versioned>()
         versioned.id shouldBe TemplateId("abc")
@@ -223,14 +219,13 @@ class KarboneStubServerSpec :
           ex.respondBinary(200, "application/pdf", "report.pdf", pdfBytes)
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> {
-            karbone.renders.render(
-              TemplateSource.id("abc"),
-              RenderData.Empty,
-              RenderOptions.pdf(PdfVersion.PDF_A_3),
-            )
-          }
+        val result = either {
+          karbone.renders.render(
+            TemplateSource.id("abc"),
+            RenderData.Empty,
+            RenderOptions.pdf(PdfVersion.PDF_A_3),
+          )
+        }
         val document = result.shouldBeInstanceOf<Either.Right<RenderedDocument>>().value
         document.content shouldBe pdfBytes
         document.fileName shouldBe "report.pdf"
@@ -255,23 +250,23 @@ class KarboneStubServerSpec :
         val pdfBytes = byteArrayOf(9, 9, 9)
         val renderAttempts = AtomicInteger(0)
         stub.handler = HttpHandler { ex ->
-          when {
-            ex.requestURI.path == "/render/$sha" ->
+          when (ex.requestURI.path) {
+            "/render/$sha" ->
               if (renderAttempts.getAndIncrement() == 0) {
                 ex.respondJson(404, """{"success":false,"error":"Template not found"}""")
               } else {
                 ex.respondBinary(200, "application/pdf", "out.pdf", pdfBytes)
               }
-            ex.requestURI.path == "/template" ->
-              ex.respondJson(200, """{"success":true,"data":{"templateId":"$sha"}}""")
+
+            "/template" -> ex.respondJson(200, """{"success":true,"data":{"templateId":"$sha"}}""")
+
             else -> ex.sendResponseHeaders(500, -1)
           }
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> {
-            karbone.renders.render(TemplateSource.bytes(content), RenderData.Empty)
-          }
+        val result = either {
+          karbone.renders.render(TemplateSource.bytes(content), RenderData.Empty)
+        }
         result.shouldBeInstanceOf<Either.Right<RenderedDocument>>()
         stub.requests shouldHaveSize 3
         stub.requests[0].path shouldBe "/render/$sha"
@@ -285,10 +280,9 @@ class KarboneStubServerSpec :
           ex.respondJson(404, """{"success":false,"error":"no such template"}""")
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> {
-            karbone.renders.render(TemplateSource.id("missing"), RenderData.Empty)
-          }
+        val result = either {
+          karbone.renders.render(TemplateSource.id("missing"), RenderData.Empty)
+        }
         val error = result.shouldBeInstanceOf<Either.Left<KarboneError>>().value
         val notFound = error.shouldBeInstanceOf<KarboneError.TemplateNotFound>()
         notFound.message shouldBe "no such template"
@@ -300,10 +294,9 @@ class KarboneStubServerSpec :
           ex.respondJson(401, """{"success":false,"error":"Invalid token"}""")
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> {
-            karbone.renders.render(TemplateSource.id("abc"), RenderData.Empty)
-          }
+        val result = either {
+          karbone.renders.render(TemplateSource.id("abc"), RenderData.Empty)
+        }
         val error = result.shouldBeInstanceOf<Either.Left<KarboneError>>().value
         val unauthorized = error.shouldBeInstanceOf<KarboneError.Unauthorized>()
         unauthorized.message shouldBe "Invalid token"
@@ -314,10 +307,9 @@ class KarboneStubServerSpec :
           ex.respondJson(200, """{"success":false,"error":"boom"}""")
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> {
-            karbone.renders.render(TemplateSource.id("abc"), RenderData.Empty)
-          }
+        val result = either {
+          karbone.renders.render(TemplateSource.id("abc"), RenderData.Empty)
+        }
         val error = result.shouldBeInstanceOf<Either.Left<KarboneError>>().value
         error.shouldBeInstanceOf<KarboneError.Unexpected>()
       }
@@ -329,10 +321,9 @@ class KarboneStubServerSpec :
           ex.respondJson(200, """{"success":true,"data":{"renderId":"r1.pdf"}}""")
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderId> {
-            karbone.renders.start(TemplateSource.id("xyz"), RenderData.Empty)
-          }
+        val result = either {
+          karbone.renders.start(TemplateSource.id("xyz"), RenderData.Empty)
+        }
         result.shouldBeInstanceOf<Either.Right<RenderId>>().value shouldBe RenderId("r1.pdf")
         stub.requests.single().query shouldBe "download=false"
       }
@@ -343,8 +334,7 @@ class KarboneStubServerSpec :
           ex.respondBinary(200, "application/pdf", null, pdfBytes)
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> { karbone.renders.download(RenderId("r1.pdf")) }
+        val result = either { karbone.renders.download(RenderId("r1.pdf")) }
         val document = result.shouldBeInstanceOf<Either.Right<RenderedDocument>>().value
         document.content shouldBe pdfBytes
         val request = stub.requests.single()
@@ -357,8 +347,7 @@ class KarboneStubServerSpec :
           ex.respondJson(404, """{"success":false,"error":"expired"}""")
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, RenderedDocument> { karbone.renders.download(RenderId("gone.pdf")) }
+        val result = either { karbone.renders.download(RenderId("gone.pdf")) }
         result
           .shouldBeInstanceOf<Either.Left<KarboneError>>()
           .value
@@ -371,14 +360,13 @@ class KarboneStubServerSpec :
         ex.respondJson(200, """{"success":true,"message":"queued"}""")
       }
       val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-      val result =
-        either<KarboneError, AsyncRenderAccepted> {
-          karbone.renders.startAsync(
-            TemplateSource.id("xyz"),
-            RenderData.Empty,
-            Webhook("https://cb", mapOf("Authorization" to "secret")),
-          )
-        }
+      val result = either {
+        karbone.renders.startAsync(
+          TemplateSource.id("xyz"),
+          RenderData.Empty,
+          Webhook("https://cb", mapOf("Authorization" to "secret")),
+        )
+      }
       result.shouldBeInstanceOf<Either.Right<AsyncRenderAccepted>>()
       val request = stub.requests.single()
       request.header("carbone-webhook-url") shouldBe "https://cb"
@@ -392,10 +380,9 @@ class KarboneStubServerSpec :
         ex.respondBinary(200, "application/pdf", "out.pdf", pdfBytes)
       }
       val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-      val result =
-        either<KarboneError, RenderedDocument> {
-          karbone.renders.convert(TemplateSource.bytes(doc), OutputFormat.PDF)
-        }
+      val result = either {
+        karbone.renders.convert(TemplateSource.bytes(doc), OutputFormat.PDF)
+      }
       result.shouldBeInstanceOf<Either.Right<RenderedDocument>>()
       val request = stub.requests.single()
       request.path shouldBe "/render/template"
@@ -409,7 +396,7 @@ class KarboneStubServerSpec :
       should("delete a template via DELETE /template/{id}") {
         stub.handler = HttpHandler { ex -> ex.respondJson(200, """{"success":true,"data":{}}""") }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result = either<KarboneError, Unit> { karbone.templates.delete(TemplateId("t1")) }
+        val result = either { karbone.templates.delete(TemplateId("t1")) }
         result.shouldBeInstanceOf<Either.Right<Unit>>()
         val request = stub.requests.single()
         request.method shouldBe "DELETE"
@@ -422,8 +409,7 @@ class KarboneStubServerSpec :
           ex.respondBinary(200, "application/pdf", "modele.pdf", bytes)
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, TemplateFile> { karbone.templates.download(TemplateId("t1")) }
+        val result = either { karbone.templates.download(TemplateId("t1")) }
         val file = result.shouldBeInstanceOf<Either.Right<TemplateFile>>().value
         file.content shouldBe bytes
         file.fileName shouldBe "modele.pdf"
@@ -437,7 +423,7 @@ class KarboneStubServerSpec :
           )
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result = either<KarboneError, Page<TemplateInfo>> { karbone.templates.list() }
+        val result = either { karbone.templates.list() }
         val page = result.shouldBeInstanceOf<Either.Right<Page<TemplateInfo>>>().value
         page.items.map { it.id } shouldBe listOf(TemplateId("a"))
         page.hasMore shouldBe true
@@ -460,8 +446,7 @@ class KarboneStubServerSpec :
           }
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val result =
-          either<KarboneError, List<TemplateInfo>> { karbone.templates.listAll().toList() }
+        val result = either { karbone.templates.listAll().toList() }
         val items = result.shouldBeInstanceOf<Either.Right<List<TemplateInfo>>>().value
         items.map { it.id } shouldBe listOf(TemplateId("a"), TemplateId("b"))
         stub.requests shouldHaveSize 2
@@ -478,8 +463,8 @@ class KarboneStubServerSpec :
           }
         }
         val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
-        val categories = either<KarboneError, List<String>> { karbone.templates.categories() }
-        val tags = either<KarboneError, List<String>> { karbone.templates.tags() }
+        val categories = either { karbone.templates.categories() }
+        val tags = either { karbone.templates.tags() }
         categories.shouldBeInstanceOf<Either.Right<List<String>>>().value shouldBe
           listOf("Sales", "HR")
         tags.shouldBeInstanceOf<Either.Right<List<String>>>().value shouldBe listOf("invoice")
@@ -488,7 +473,7 @@ class KarboneStubServerSpec :
 
     should("map a connection failure to KarboneError.Transport") {
       val karbone = Karbone.onPremise("http://127.0.0.1:1") { connectTimeout = 1.seconds }
-      val result = either<KarboneError, ApiStatus> { karbone.status() }
+      val result = either { karbone.status() }
       result
         .shouldBeInstanceOf<Either.Left<KarboneError>>()
         .value
