@@ -91,7 +91,10 @@ recreate durable, cross-branch lessons here — those go to memory.
 Docs live in `docs/` and are built with [Quarkdown](https://quarkdown.com/) 2.6.0 using its `docs` library, not Writerside/VitePress
 like Metalastic. Layout: `_setup.qd` (theme, shared setup, auto-included), `_nav.qd` (left sidebar links), `main.qd` (home + entry
 point), one `.qd` per page starting with `.docname {..}` then `.include {docs}`. A page becomes a subdocument only when linked from
-`_nav.qd` or another page. `docs/public/` is copied verbatim to the output root (CNAME etc.). Output lands in `build/docs/Karbone`
+`_nav.qd` or another page. `docs/public/` is copied verbatim to the output root (CNAME etc.). Reference such assets with the `@/` prefix
+(`![x](@/karbone-mark.svg)`, `[home](@/index.html)`): Quarkdown then resolves `./` vs `../` per subpage; raw `.html` blocks get no path
+resolution. Never link `main.qd`: it creates a `main/` subpage duplicating the home. Quarkdown has no favicon option; `_setup.qd` inlines
+the SVG favicon as a data URI through `.html`, and puts the brand mark in `.pagemargin {topleft}`. Output lands in `build/docs/Karbone`
 (directory named after `.docname`), deployed to GitHub Pages by `deploy-docs.yml` on pushes to `main`. Quarkdown is not a Gradle task;
 install it locally (`brew install quarkdown-labs/quarkdown/quarkdown`) and run:
 
