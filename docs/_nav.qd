@@ -8,5 +8,6 @@
 - [Errors](errors.qd)
 - [On-premise](on-premise.qd)
 - [Testing](testing.qd)
+- [Logging](logging.qd)
 
 .include {_dev-nav.qd}

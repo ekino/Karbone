@@ -44,6 +44,8 @@ tooling, look there first.
   `parseUploaded` prefers `id`/`versionId`. In versioned mode `versionId` is not the plain SHA-256 of the file. Multipart `tags` must be
   a JSON array string, not repeated fields.
 - A malformed bearer makes carbone-ee answer HTTP 500 "Invalid JSON Web Token"; `Responses.apiError` maps that message to `Unauthorized`.
+- Logging: kotlin-logging under `com.ekino.oss.karbone.*`, DEBUG only (request lines, hash-first upload, convert fallback) except WARN
+  on a retried transport failure. Never log tokens, bodies, templates or documents; failures are returned as `KarboneError`, not logged.
 - `renders.convert` sends no `data` (v5 spec) and retries with `data: {}` on a 422 "Missing data" from v4-behaving servers
   (carbone-ee 5.8 on-premise does this).
 

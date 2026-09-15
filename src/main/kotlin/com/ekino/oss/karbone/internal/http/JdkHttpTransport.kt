@@ -46,7 +46,7 @@ internal class JdkHttpTransport(private val config: KarboneConfig, client: HttpC
       } catch (e: IOException) {
         if (attempt >= attempts) throw e
         val backoff = (config.retry as RetryPolicy.OnTransportError).backoff * attempt
-        logger.debug(e) {
+        logger.warn(e) {
           "Transport failure on ${request.method} ${request.url}, retrying in $backoff (attempt $attempt/$attempts)"
         }
         delay(backoff)

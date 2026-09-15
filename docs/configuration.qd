@@ -58,8 +58,6 @@ karbone.renders.render(template, data) {
 
 ## Logging
 
-Karbone logs through [kotlin-logging](https://github.com/oshai/kotlin-logging) (`io.github.oshai.kotlinlogging`), which sits
-on top of SLF4J — wire it to whatever backend your application already uses (Logback, Log4j2...). Logger names live under the
-`com.ekino.oss.karbone` package (e.g. `com.ekino.oss.karbone.internal.DefaultRenders`), so they can be tuned independently of
-the rest of your application's logging configuration. Logging is informational only (e.g. the hash-first upload-and-retry
-path, or the v4-fallback retry in `convert`) and never includes template content or render data.
+Karbone logs through kotlin-logging under the `com.ekino.oss.karbone` logger names and stays silent at `INFO` and above in the
+normal path. See the dedicated [Logging](logging.qd) page for backends, levels, what is never logged and configuration examples.
+

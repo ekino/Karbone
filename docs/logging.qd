@@ -1,0 +1,89 @@
+.docname {Logging}
+.include {docs}
+
+# Logging
+
+Karbone is a library: it stays quiet by default and never decides where your logs go.
+
+## Facade and backend
+
+Karbone logs through [kotlin-logging](https://github.com/oshai/kotlin-logging) 8 (`io.github.oshai:kotlin-logging-jvm`), which
+comes as a transitive dependency. kotlin-logging does **not** pull `slf4j-api`: it picks a backend from what is already on your
+classpath.
+
+| On your classpath                       | Where Karbone's logs go                                                          |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| `org.slf4j:slf4j-api` (Spring Boot, most apps) | SLF4J, hence Logback, Log4j2, JUL... through your usual binding                |
+| Logback only                            | Logback directly                                                                 |
+| Nothing                                 | kotlin-logging's built-in direct logger (console), or JUL depending on its detection |
+
+In practice: if your application already logs, Karbone follows without any extra dependency. For a bare JVM program, add
+`org.slf4j:slf4j-api` plus a binding to control the output.
+
+## Logger names
+
+All loggers live under `com.ekino.oss.karbone`, so one line tunes the whole SDK:
+
+| Logger                                                | What it covers                                                   |
+| ----------------------------------------------------- | ---------------------------------------------------------------- |
+| `com.ekino.oss.karbone.internal.http.JdkHttpTransport` | Every HTTP call: method, URL, status, retries                    |
+| `com.ekino.oss.karbone.internal.DefaultRenders`        | Rendering decisions: hash-first upload, conversion fallback     |
+
+## What is logged, at which level
+
+| Level   | Event                                                                                       | Example                                                                 |
+| ------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `WARN`  | A transport failure that will be retried (only with a `RetryPolicy.OnTransportError`)        | `Transport failure on POST https://api.carbone.io/render/3e66…?download=true, retrying in 200ms (attempt 1/2)` with the exception |
+| `DEBUG` | Each request, then its status                                                                | `POST https://api.carbone.io/render/3e66…?download=true` / `… -> HTTP 200` |
+| `DEBUG` | Hash-first path: the template is unknown to Carbone and gets uploaded before a retry         | `Template 3e66… unknown to Carbone, uploading invoice.docx then retrying` |
+| `DEBUG` | `convert` fell back to `data: {}` for a v4-behaving server                                   | `Server requires a data field for conversion, retrying with an empty data-set` |
+
+Nothing is logged at `INFO` or above in the normal path: a successful render is silent. Failures are not logged either; they come
+back to you as a `KarboneError` (or a `KarboneException` from the blocking facade) and you decide whether and how to log them.
+`KarboneError.describe()` gives a one-line, human-readable summary suited to a log message.
+
+## What is never logged
+
+- The `Authorization` header or the token.
+- Request bodies: your `data`, `complement`, `translations`, template metadata.
+- Template content and rendered documents.
+- Response bodies, except the excerpt kept inside `KarboneError.Unexpected.body` (up to 2000 characters) that *you* may choose to log.
+
+Note that at `DEBUG` the URLs contain template ids (SHA-256 of your templates) and, in the two-step flow, render ids. A render id is a
+single-use credential for `GET /render/{renderId}`, so treat `DEBUG` logs of the transport logger as moderately sensitive.
+
+## Configuration examples
+
+Spring Boot (`application.yml`):
+
+```yaml
+logging:
+  level:
+    com.ekino.oss.karbone: WARN # production default
+    com.ekino.oss.karbone.internal.http: DEBUG # trace every Carbone call while investigating
+```
+
+Logback (`logback.xml`):
+
+```xml
+<logger name="com.ekino.oss.karbone" level="WARN"/>
+<logger name="com.ekino.oss.karbone.internal.http.JdkHttpTransport" level="DEBUG"/>
+```
+
+Log4j2 (`log4j2.xml`), with `log4j-slf4j2-impl` on the classpath:
+
+```xml
+<Logger name="com.ekino.oss.karbone" level="warn"/>
+```
+
+## Correlating calls
+
+Karbone does not touch the MDC. Since its API is suspending, MDC values set by the caller are only visible inside Karbone's log lines
+if you propagate them across coroutine dispatch, for example with `kotlinx-coroutines-slf4j`:
+
+```kotlin
+withContext(MDCContext()) { karbone.renders.render(template, data) }
+```
+
+To correlate a render with the Carbone side, keep the `RenderId` returned by `renders.start` in your own logs; there is no request id
+header in Carbone's responses today.
