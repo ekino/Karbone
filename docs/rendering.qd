@@ -1,0 +1,131 @@
+.docname {Rendering}
+.include {docs}
+
+# Rendering
+
+Everything document-generation related lives on `karbon.renders`, an implementation of the `Renders` interface.
+
+## Template sources
+
+A `TemplateSource` says where the template comes from:
+
+```kotlin
+TemplateSource.bytes(docxBytes, fileName = "invoice.docx")   // in-memory content
+TemplateSource.file(Path.of("invoice.docx"))                 // local file, read lazily and cached
+TemplateSource.stream("invoice.docx") { openInputStream() }  // opened and read lazily, cached
+TemplateSource.id("5f3759df...")                             // a template Carbone already knows
+```
+
+The first three are `TemplateSource.Content`: their bytes are available locally, and `sha256()` gives the SHA-256 of that
+content, which is also the legacy Carbone template id. `TemplateSource.id(...)` (aliased `TemplateSource.Remote`) instead
+references a template already stored on Carbone, by legacy id, versioned template id, or version id — Carbone accepts all
+three in the same path segment.
+
+### Hash-first flow
+
+Rendering from a `Content` source never requires uploading it up front:
+
+1. Karbon computes the SHA-256 of the content and calls `POST /render/{sha256}` directly.
+2. If Carbone already has a template with that hash (because it was uploaded before, by Karbon or anyone else), the render
+   succeeds in one round-trip.
+3. If Carbone answers 404, Karbon uploads the content with `templates.upload(...)` and retries the render exactly once.
+
+This only applies to legacy (non-versioned) template ids: a `TemplateSource.Remote` id is used as-is and a 404 on it is raised
+as `KarbonError.TemplateNotFound`, never retried.
+
+## Render data
+
+`RenderData` is the `data` field of the request:
+
+```kotlin
+RenderData.raw("""{"number":"F-1"}""")            // pre-serialized JSON, e.g. from Jackson or Gson
+RenderData.of(jsonElement)                        // a kotlinx.serialization JsonElement
+RenderData.of(myDataClass)                        // any @Serializable value, encoded by Karbon
+RenderData.Empty                                  // {} — tags resolve to empty
+```
+
+`RenderData.Raw` is meant for callers who already produce JSON with another library; Karbon sends it through unmodified.
+`RenderData.of(value)` requires `value`'s type to be `@Serializable` and uses Karbon's configured `Json` (see
+[Configuration](configuration.qd)) to encode it.
+
+## Render options
+
+`RenderOptions` covers every field Carbone accepts alongside `data` and the template, built either directly or through the
+DSL builder:
+
+```kotlin
+val options = RenderOptions.build {
+  pdf {
+    version = PdfVersion.PDF_A_3
+    encryptFile = true
+    documentOpenPassword = "secret"
+    watermark("DRAFT") { opacity = 0.3; rotation = 45.0 }
+  }
+  lang = "fr-fr"
+  timezone = "Europe/Paris"
+  reportName = "invoice-{d.number}"
+  hardRefresh = true
+  header("carbone-egress-header-authorization", "Bearer downstream-token")
+}
+```
+
+Option groups:
+
+- **`convertTo` / `OutputFormat`** — the output format. `OutputFormat.Simple` covers formats without options (`DOCX`, `XLSX`,
+  `PPTX`, `ODT`, `ODS`, `ODP`, `HTML`, `TXT`, `MD`, `EPUB`, `SVG`, `WEBP`, ...); `Pdf`, `Jpg`, `Png` and `Csv` carry typed
+  options. The builder exposes `pdf { ... }`, `jpg(options)`, `png(options)` and `csv(options)` shortcuts.
+  - **`PdfOptions`**: `version` (`PdfVersion`: `PDF_1_6_DEFAULT`, `PDF_A_1`, `PDF_A_2`, `PDF_A_3`, `PDF_1_5`, `PDF_1_6`),
+    `encryptFile`, `documentOpenPassword`, `permissionPassword`, `restrictPermissions`, `printing` (`PdfPrinting`), `changes`
+    (`PdfChanges`), `watermark` (legacy single centered watermark) / `watermarks` (up to `PdfOptions.MAX_WATERMARKS`, each a
+    `Watermark` with `anchor`, `offsetX`/`offsetY`, `rotation`, `color`, `size`, `opacity`, `font`, `fromPage`/`toPage`, and
+    text supporting `{#PAGE_NUMBER}` / `{#PAGE_TOTAL}`), `pdfUaCompliance`, `useTaggedPdf`, `pageRange` (e.g. `"1-3"`),
+    `useLosslessCompression`, `reduceImageResolution`, `maxImageResolution` (`ImageResolution`), `exportFormFields`,
+    `exportNotes`.
+  - **`ImageOptions`** (JPG/PNG): `pixelWidth`, `pixelHeight`, `colorMode` (`ColorMode`), `quality` (JPG, 1..100),
+    `compression` (PNG, 0..9), `interlaced` / `translucent` (PNG only).
+  - **`CsvOptions`**: `fieldSeparator`, `textDelimiter`, `characterSet` (a LibreOffice charset code, e.g. `"76"` for UTF-8).
+- **`converter`** — `PdfConverter` (`LIBRE_OFFICE`, `ONLY_OFFICE`, `CHROMIUM`); only meaningful when converting to PDF.
+- **`timezone` / `lang`** — IANA timezone (server default `Europe/Paris`) and locale (e.g. `"fr-fr"`), driving `{t()}`,
+  `:formatN` and `:formatC`.
+- **`enum` / `translations` / `currency`** — `enum` feeds the `convEnum` formatter; `translations` (keyed by locale) is used
+  with `{t()}` and `lang`; `currency` is a `CurrencyConversion(source, target, rates)`.
+- **`reportName`** — the file name sent back in `Content-Disposition`; may itself contain Carbone tags (e.g.
+  `"invoice-{d.number}"`).
+- **`hardRefresh`** — recompute pagination and the table of contents at the end of rendering; requires `convertTo`.
+- **`batch` / webhook** — `BatchOptions(splitBy, output, reportName)` for multi-report generation from an array in the data;
+  batch rendering requires an asynchronous render (`startAsync` with a `Webhook`) and is rejected as `InvalidRequest` on
+  `render`/`start`.
+- **`headers`** — extra HTTP headers sent with the request, e.g. to relay a token to a downstream service through
+  `carbone-egress-header-*`.
+
+## Sync vs. async
+
+```kotlin
+// one round trip, bytes come back directly
+val doc = karbon.renders.render(template, data, options)
+
+// two-step: get a RenderId, fetch the file later (no auth needed on download)
+val id = karbon.renders.start(template, data, options)
+val doc = karbon.renders.download(id)
+
+// asynchronous: Carbone calls the webhook with {success, data: {renderId}} when done
+karbon.renders.startAsync(template, data, Webhook("https://example.com/callback"), options)
+```
+
+`render` calls `POST /render/{id}?download=true` and returns the file directly. `start` calls the same endpoint with
+`download=false` and returns a `RenderId` to pass to `download` (`GET /render/{renderId}`, unauthenticated; on the cloud the
+file is kept for one hour and served once). `startAsync` is required for `batch` rendering and returns an
+`AsyncRenderAccepted` carrying Carbone's acknowledgement message.
+
+## Pure conversion
+
+`convert` calls `POST /render/template`: no templating happens, tags in the document are left untouched, only the output
+format changes.
+
+```kotlin
+val pdf = karbon.renders.convert(TemplateSource.bytes(docxBytes), OutputFormat.PDF)
+```
+
+Per the v5 API, omitting `data` for a conversion skips templating entirely. Some servers still behave like v4 and answer
+`422` (`"Missing data"`) when `data` is absent; Karbon detects that and retries once with `data: {}`, which is equivalent for
+a document with no Carbone tags. This is transparent to callers.

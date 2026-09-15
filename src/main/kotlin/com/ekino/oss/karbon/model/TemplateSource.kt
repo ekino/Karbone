@@ -76,7 +76,8 @@ public sealed interface TemplateSource {
 
     @JvmStatic public fun id(id: TemplateId): Remote = Remote(id)
 
-    internal fun sha256Hex(bytes: ByteArray): String =
+    @JvmStatic
+    public fun sha256Hex(bytes: ByteArray): String =
       MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") {
         String.format(java.util.Locale.ROOT, "%02x", it)
       }

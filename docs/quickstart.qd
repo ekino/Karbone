@@ -13,6 +13,107 @@ dependencies {
 }
 ```
 
-## Usage
+Snapshots (built from `main`) are published to the Central Portal snapshot repository:
 
-Coming soon.
+```kotlin
+repositories {
+    mavenCentral()
+    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
+}
+```
+
+## Creating a client
+
+Against Carbone Cloud, with an API key:
+
+```kotlin
+val karbon = Karbon.cloud(apiKey = "YOUR_API_KEY")
+```
+
+Against a self-hosted `carbone-ee` (see [On-premise](on-premise.qd) for running one):
+
+```kotlin
+val karbon = Karbon.onPremise("http://localhost:4000", token = "YOUR_JWT")
+```
+
+`token` is optional on-premise: pass nothing (or `null`) when the container runs with authentication disabled.
+
+Both factories accept a trailing configuration block for timeouts, retries, JSON and more — see [Configuration](configuration.qd).
+
+## Rendering a document
+
+Every Karbon call is a suspending function that needs a `Raise<KarbonError>` in scope. The simplest way to get one is Arrow's
+`either { ... }`, which turns the whole block into an `Either<KarbonError, T>`:
+
+```kotlin
+import arrow.core.raise.either
+import com.ekino.oss.karbon.Karbon
+import com.ekino.oss.karbon.model.PdfVersion
+import com.ekino.oss.karbon.model.RenderData
+import com.ekino.oss.karbon.model.TemplateSource
+import java.nio.file.Path
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+suspend fun renderInvoice() {
+  val karbon = Karbon.onPremise("http://localhost:4000", token = "YOUR_JWT")
+
+  val template = TemplateSource.file(Path.of("invoice.docx"))
+  val data =
+    RenderData.of(
+      buildJsonObject {
+        put("number", "F-2026-001")
+        put("total", 1234.5)
+      }
+    )
+
+  val result =
+    either {
+      karbon.renders.render(template, data) {
+        pdf { version = PdfVersion.PDF_A_3 }
+        lang = "fr-fr"
+      }
+    }
+
+  result.fold(
+    { error -> println("Render failed: ${error.describe()}") },
+    { document ->
+      println("Got ${document.fileName} (${document.content.size} bytes)")
+      document.writeTo(Path.of("invoice.pdf"))
+    },
+  )
+}
+```
+
+`template` is hashed locally (SHA-256) and rendered directly; Karbon only uploads it if Carbone does not already know that
+hash. `render` returns a `RenderedDocument` with `content: ByteArray`, `fileName` and `contentType`; use `inputStream()` or
+`writeTo(path)` to consume it. See [Rendering](rendering.qd) for the full set of options.
+
+## Java / blocking callers
+
+Java has no coroutines and no `Raise`. `Karbon.blocking()` returns a synchronous facade where every call runs to completion on
+the calling thread and throws `KarbonException` on failure:
+
+```java
+import com.ekino.oss.karbon.Karbon;
+import com.ekino.oss.karbon.KarbonException;
+import com.ekino.oss.karbon.blocking.KarbonBlocking;
+import com.ekino.oss.karbon.model.RenderData;
+import com.ekino.oss.karbon.model.RenderOptions;
+import com.ekino.oss.karbon.model.RenderedDocument;
+import com.ekino.oss.karbon.model.TemplateSource;
+
+KarbonBlocking karbon = Karbon.onPremise("http://localhost:4000", "YOUR_JWT").blocking();
+
+try {
+    RenderedDocument document =
+        karbon.getRenders().render(
+            TemplateSource.bytes(templateBytes, "invoice.docx"),
+            RenderData.raw("{\"number\":\"F-2026-001\"}"),
+            RenderOptions.None);
+    // use document.getContent(), document.getFileName()...
+} catch (KarbonException e) {
+    // e.getError() is the KarbonError value
+    System.err.println(e.getMessage());
+}
+```

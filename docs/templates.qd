@@ -1,0 +1,93 @@
+.docname {Templates}
+.include {docs}
+
+# Templates
+
+`karbon.templates` manages templates stored on Carbone directly (`/template` and `/templates`). Most rendering does not need
+this: see the hash-first flow in [Rendering](rendering.qd), which uploads on demand. Use `templates` when you want explicit
+control — versioning, metadata, categories, tags, or cleanup.
+
+## Uploading
+
+```kotlin
+val uploaded =
+  karbon.templates.upload(
+    TemplateSource.file(Path.of("invoice.docx")),
+    UploadOptions(name = "Invoice", category = "billing", tags = listOf("finance", "fr")),
+  )
+```
+
+`UploadOptions` fields:
+
+| Field         | Meaning                                                                          |
+|---------------|-----------------------------------------------------------------------------------|
+| `id`          | Versioned mode only: attach this upload as a new version of an existing template. |
+| `versioning`  | Request versioned mode. Ignored by Community edition.                             |
+| `name`        | Display name (max `UploadOptions.MAX_TEXT_LENGTH`, 200, characters).              |
+| `comment`     | Free-text comment (same length limit).                                            |
+| `category`    | Category name (same length limit).                                                |
+| `tags`        | List of tags.                                                                     |
+| `expireAt`    | Scheduled deletion instant; `null` means never.                                   |
+| `deployedAt`  | Deployment time used to pick the active version; `null` keeps the server default. |
+| `sample`      | A `TemplateSample` (`data`, `complement`, `translations`, `enum`) for Studio previews. |
+
+`id`, `versioning`, `deployedAt` and any versioning-related metadata are accepted but **ignored by Carbone Community**
+edition, which has no template versioning.
+
+### Legacy vs. versioned templates
+
+`upload` returns a sealed `UploadedTemplate`:
+
+- **`Legacy`** — versioning off (the default, and the only mode Community supports): `id` is the SHA-256 of the uploaded
+  content. This is the same id `TemplateSource.Content.sha256()` computes locally, which is what makes the hash-first render
+  flow work without a round trip to find out the id.
+- **`Versioned`** — versioning on: a stable template `id` that survives new versions, plus a content-hash `versionId` for
+  this particular upload, along with `type`, `size`, `createdAt` and `deployedAt`.
+
+Any of the three — legacy id, versioned template id, or version id — can be passed to `render`, `download`, `update` and
+`delete` in the same `TemplateId` / `TemplateSource.id(...)` slot; Carbone resolves whichever one it receives.
+
+## Download, update, delete
+
+```kotlin
+val file = karbon.templates.download(id)          // TemplateFile: content, fileName, contentType
+val info = karbon.templates.update(id, TemplatePatch(name = "Invoice v2", tags = listOf("finance")))
+karbon.templates.delete(id)
+```
+
+`TemplatePatch` fields are all nullable and mean "leave unchanged" when `null`; set `expireAt = Instant.EPOCH` to cancel a
+scheduled deletion.
+
+## Listing
+
+```kotlin
+val page: Page<TemplateInfo> = karbon.templates.list(ListTemplatesQuery(category = "billing", limit = 50))
+// page.items, page.hasMore, page.nextCursor
+
+karbon.templates.listAll(ListTemplatesQuery(category = "billing")).collect { info ->
+  println(info.id)
+}
+```
+
+`list` returns one `Page` (`GET /templates`); `listAll` returns a `Flow<TemplateInfo>` that follows `nextCursor` until
+`hasMore` is `false`, raising on the same `Raise<KarbonError>` used to collect it. `ListTemplatesQuery` filters by `id`,
+`versionId`, `category`, `origin` (`TemplateOrigin`: `API`, `STUDIO`, `SALESFORCE`, `ODOO`, `HUBSPOT`), `includeVersions`, and
+free-text `search`, with `limit` capped at `ListTemplatesQuery.MAX_LIMIT` (100).
+
+Template listing, like versioning, requires template management and may not be available on Community edition; see
+[On-premise](on-premise.qd).
+
+## Categories and tags
+
+```kotlin
+val categories: List<String> = karbon.templates.categories()  // GET /templates/categories
+val tags: List<String> = karbon.templates.tags()               // GET /templates/tags
+```
+
+## Template identity
+
+A legacy template's id is deterministic: the SHA-256 hex digest of its bytes, computed the same way by Karbon
+(`TemplateSource.sha256Hex`) and by Carbone. Two uploads of byte-identical content get the same id. A versioned template's
+identity is split in two: a stable `id` for the template itself, and a `versionId` that changes with every new version
+(itself a content hash). Pick legacy ids for stateless, content-addressed templates; pick versioned ids when you need to
+update a template in place while keeping a stable reference to "the current invoice template".

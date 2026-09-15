@@ -1,0 +1,86 @@
+.docname {Testing}
+.include {docs}
+
+# Testing
+
+## Depend on `KarbonClient`
+
+Code that calls Karbon should depend on the `KarbonClient` interface (`templates`, `renders`, `status()`), not on the
+concrete `Karbon` class. `Karbon` is the real, network-backed implementation; `com.ekino.oss.karbon.testing.FakeKarbon` is an
+in-memory double implementing the same interface, so a service can be tested without any HTTP or Docker involved.
+
+```kotlin
+class InvoiceService(private val karbon: KarbonClient) {
+  context(_: Raise<KarbonError>)
+  suspend fun renderInvoice(id: TemplateId, number: String): RenderedDocument =
+    karbon.renders.render(TemplateSource.id(id), RenderData.raw("""{"number":"$number"}"""))
+}
+```
+
+## `FakeKarbon`
+
+`FakeKarbon` stores templates in memory (keyed by the same SHA-256 Carbone would use), so the hash-first render flow works
+exactly as with the real client.
+
+```kotlin
+val fake = FakeKarbon()
+
+// pre-load a template so a TemplateSource.Remote id resolves
+val id = fake.addTemplate(templateBytes)
+
+val document = either { fake.renders.render(TemplateSource.id(id), RenderData.raw("{}")) }
+  .getOrElse { error("render failed") }
+```
+
+Key surface:
+
+- **`addTemplate(content, options)`** — pre-loads a template, returning its (SHA-256) `TemplateId`, so renders and downloads
+  against a known id work without going through `upload`.
+- **`calls`** — every call made on the fake, in order, as a sealed `Call` (`Upload`, `Download`, `Update`, `Delete`, `List`,
+  `Render`, `DownloadRender`, `Status`). Useful to assert what a service under test actually did.
+- **`rendered`** — every `RenderedDocument` produced so far, in order.
+- **`failNextWith(error)`** — the *next* call, whatever it is, raises `error` instead of running. Use it to test a single
+  failure path without standing up a whole failing scenario.
+- **`renderer`** — a `FakeKarbon.Renderer` (a `fun interface`) producing the bytes of a rendered document from a
+  `RenderRequest` (`templateId`, `template` bytes, `data`, `options`). The default renderer writes a small JSON description
+  of the request; swap it for a custom one to assert on realistic-looking output, or to simulate a specific format.
+- **`reset()`** — clears stored templates, pending async renders, recorded calls, rendered documents and any pending
+  `failNextWith` error.
+- **`status`** — a mutable `ApiStatus` returned by `status()`; defaults to a successful fake status.
+
+### Example test
+
+```kotlin
+class InvoiceServiceSpec :
+  ShouldSpec({
+    should("render an invoice and record the call") {
+      val fake = FakeKarbon()
+      val id = fake.addTemplate("template bytes".toByteArray())
+      val service = InvoiceService(fake)
+
+      val document = either { service.renderInvoice(id, "F-1") }.shouldBeInstanceOf<Either.Right<RenderedDocument>>().value
+
+      document.fileName shouldNotBe null
+      fake.calls.filterIsInstance<FakeKarbon.Call.Render>() shouldHaveSize 1
+    }
+
+    should("propagate a template-not-found error") {
+      val fake = FakeKarbon()
+      fake.failNextWith(KarbonError.TemplateNotFound(TemplateId("missing"), "gone"))
+      val service = InvoiceService(fake)
+
+      val result = either { service.renderInvoice(TemplateId("missing"), "F-1") }
+      result.shouldBeInstanceOf<Either.Left<KarbonError>>().value.shouldBeInstanceOf<KarbonError.TemplateNotFound>()
+    }
+  })
+```
+
+A plain JUnit 5 test reads the same way, just without Kotest's `ShouldSpec` DSL — `FakeKarbon` and Arrow's `either`/`Either`
+are ordinary Kotlin, no test-framework dependency involved.
+
+## Karbon's own tests
+
+Karbon's own integration tests (`CarboneContainerSpec`, `CarboneAuthContainerSpec`) run against a real `carbone-ee` container
+via [Testcontainers](https://testcontainers.com/), covering both authentication-disabled and JWT-authenticated setups. They
+are skipped automatically when Docker is not available, and are a good reference for exact request/response shapes if you
+need to go beyond what `FakeKarbon` simulates.

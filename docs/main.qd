@@ -8,14 +8,34 @@
 Karbon is a Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API.
 
 It is meant as a modern, idiomatic and complete replacement for the official
-[carbone-sdk-java](https://github.com/carboneio/carbone-sdk-java).
+[carbone-sdk-java](https://github.com/carboneio/carbone-sdk-java), which has been left incomplete and dated: no coroutine support,
+no typed render options, string-typed errors, and only partial coverage of the API.
 
 > Karbon is in early development. The API is not stable yet.
 
 ## Why Karbon?
 
-- Idiomatic Kotlin API, coroutine-friendly.
-- Full coverage of the Carbone API (templates, rendering, status).
-- Published on Maven Central under `com.ekino.oss:karbon`, MIT licensed.
+- **Typed everywhere.** `RenderOptions`, `OutputFormat` and its `PdfOptions` / `ImageOptions` / `CsvOptions`, `UploadOptions`,
+  `TemplatePatch`... all the fields Carbone accepts are Kotlin types with builders, not raw JSON maps.
+- **Errors as values.** Every call is `context(_: Raise<KarbonError>) suspend fun ...`, built on [Arrow](https://arrow-kt.io/)'s
+  `Raise`. No exceptions to catch, no silent nulls; `KarbonError` is a sealed hierarchy you can exhaustively `when` on. A
+  synchronous, exception-throwing facade is available for Java and other non-coroutine callers.
+  See [Errors](errors.qd).
+- **Coroutine-first.** Every network call is a `suspend fun`; pagination is exposed as a `Flow`.
+- **Hash-first rendering.** Rendering from local bytes never requires a separate upload step: Karbon addresses the template by
+  its SHA-256 and uploads on demand only if Carbone does not know it yet. See [Rendering](rendering.qd).
+- **On-premise first-class.** Cloud and self-hosted `carbone-ee` are both first-class targets, with the differences (API
+  versioning header, authentication, template management) handled explicitly rather than assumed away. See
+  [On-premise](on-premise.qd).
+- **Zero HTTP dependency.** Built on the JDK's own `java.net.http.HttpClient`, `kotlinx.serialization` for JSON, and
+  `arrow-core` for errors — no OkHttp, Retrofit or Ktor client pulled into your dependency graph.
 
-Head over to the [Quickstart](quickstart.qd) to get started.
+## Where to go next
+
+- [Quickstart](quickstart.qd) — install Karbon and render your first document.
+- [Configuration](configuration.qd) — `KarbonConfig`, timeouts, retries, logging.
+- [Rendering](rendering.qd) — template sources, render data, render options, sync vs async.
+- [Templates](templates.qd) — upload, download, update, delete, list, categories and tags.
+- [Errors](errors.qd) — the `KarbonError` hierarchy and how to handle it.
+- [On-premise](on-premise.qd) — running and authenticating against a self-hosted `carbone-ee`.
+- [Testing](testing.qd) — testing code that depends on Karbon with `FakeKarbon`.

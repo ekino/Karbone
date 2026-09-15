@@ -100,6 +100,10 @@ internal object Responses {
     render: Boolean,
   ): KarbonError.Api {
     val message = root?.errorMessage()
+    // carbone-ee answers HTTP 500 "Error: Invalid JSON Web Token: ..." to a malformed bearer token;
+    // that is an auth failure.
+    if (message?.contains(JWT_ERROR_MARKER, ignoreCase = true) == true)
+      return KarbonError.Unauthorized(message, response.status)
     return when (response.status) {
       KarbonError.HTTP_UNAUTHORIZED -> KarbonError.Unauthorized(message)
       KarbonError.HTTP_NOT_FOUND ->
@@ -189,4 +193,5 @@ internal object Responses {
     runCatching { jsonArray.map { it.jsonObject } }.getOrDefault(emptyList())
 
   private const val MAX_BODY_EXCERPT = 2000
+  private const val JWT_ERROR_MARKER = "JSON Web Token"
 }

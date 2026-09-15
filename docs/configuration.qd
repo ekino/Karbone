@@ -1,0 +1,65 @@
+.docname {Configuration}
+.include {docs}
+
+# Configuration
+
+## `KarbonConfig`
+
+`KarbonConfig` is the immutable, per-client configuration behind every `Karbon` instance:
+
+| Field             | Default                        | Meaning                                                                    |
+|-------------------|---------------------------------|------------------------------------------------------------------------------|
+| `baseUrl`         | —                                | `https://api.carbone.io` or an on-premise URL such as `http://localhost:4000`. Trailing slash optional. |
+| `token`           | `null`                          | Bearer token. `null` sends no `Authorization` header.                       |
+| `apiVersion`      | `null`                          | `carbone-version` header. `null` omits it (what on-premise expects); cloud uses `KarbonConfig.LATEST_API_VERSION` (5). |
+| `connectTimeout`  | 10 seconds                      | TCP connect timeout.                                                         |
+| `requestTimeout`  | 60 seconds                      | Per-request timeout. Carbone's own synchronous render timeout is 60 s.       |
+| `retry`           | `RetryPolicy.None`              | Retries transport failures only — API errors are never retried.             |
+| `json`            | `KarbonConfig.DefaultJson`      | `kotlinx.serialization.json.Json` used for request bodies and response parsing. |
+| `userAgent`       | `"karbon/<version>"`            | `User-Agent` header sent with every request.                                |
+
+## Building a client
+
+`Karbon.cloud` and `Karbon.onPremise` both go through `KarbonConfig.Builder`, exposed as a trailing lambda:
+
+```kotlin
+val cloud = Karbon.cloud("YOUR_API_KEY") {
+  requestTimeout = 30.seconds
+  retry = RetryPolicy.OnTransportError(maxAttempts = 3, backoff = 300.milliseconds)
+}
+
+val onPremise = Karbon.onPremise("http://localhost:4000", token = "YOUR_JWT") {
+  connectTimeout = 5.seconds
+}
+```
+
+Defaults differ deliberately between the two factories:
+
+- `Karbon.cloud(apiKey)` sets `baseUrl` to `KarbonConfig.CLOUD_BASE_URL` and `apiVersion` to
+  `KarbonConfig.LATEST_API_VERSION`, so every request carries `carbone-version: 5`.
+- `Karbon.onPremise(baseUrl, token)` leaves `apiVersion` at `null`: no `carbone-version` header is sent, matching what
+  self-hosted `carbone-ee` expects (see [On-premise](on-premise.qd)). `token` itself is optional, since on-premise
+  authentication is disabled by default.
+
+Retries (`RetryPolicy.OnTransportError`) only cover connection resets, timeouts and other I/O failures — never a Carbone API
+error such as a 4xx or 5xx response, which is always surfaced as the corresponding `KarbonError` on the first attempt.
+
+## Per-call headers
+
+`KarbonConfig` configures headers for the whole client; a single render can add its own through `RenderOptions.headers` (or
+the builder's `header(name, value)`), for example to relay a token to a downstream service via
+`carbone-egress-header-authorization`, without changing the client's own `Authorization`:
+
+```kotlin
+karbon.renders.render(template, data) {
+  header("carbone-egress-header-authorization", "Bearer downstream-token")
+}
+```
+
+## Logging
+
+Karbon logs through [kotlin-logging](https://github.com/oshai/kotlin-logging) (`io.github.oshai.kotlinlogging`), which sits
+on top of SLF4J — wire it to whatever backend your application already uses (Logback, Log4j2...). Logger names live under the
+`com.ekino.oss.karbon` package (e.g. `com.ekino.oss.karbon.internal.DefaultRenders`), so they can be tuned independently of
+the rest of your application's logging configuration. Logging is informational only (e.g. the hash-first upload-and-retry
+path, or the v4-fallback retry in `convert`) and never includes template content or render data.

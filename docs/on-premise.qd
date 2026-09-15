@@ -1,0 +1,89 @@
+.docname {On-premise}
+.include {docs}
+
+# On-premise
+
+Karbon treats self-hosted `carbone-ee` as a first-class target, not an afterthought: `Karbon.onPremise(...)` has its own
+defaults (no `carbone-version` header, optional token) instead of reusing the cloud client with a different `baseUrl`.
+
+## Running carbone-ee
+
+The official Docker image, with fonts bundled:
+
+```yaml
+# docker-compose.yml
+services:
+  carbone:
+    image: carbone/carbone-ee:full-5.8.0-fonts
+    ports:
+      - "4000:4000"
+    environment:
+      CARBONE_LANG: fr
+      CARBONE_TIMEZONE: Europe/Paris
+```
+
+```bash
+docker compose up -d
+curl http://localhost:4000/status
+```
+
+Without a `CARBONE_LICENSE`, the container runs in **Community edition**: rendering and format conversion work, but template
+management (versioning, categories, tags, listing) is limited or unavailable — see below.
+
+Relevant environment variables:
+
+| Variable                            | Purpose                                                                |
+|--------------------------------------|-------------------------------------------------------------------------|
+| `CARBONE_AUTHENTICATION`             | `"true"` to require a bearer JWT on every request except `/status`.    |
+| `CARBONE_AUTHENTICATION_PUBLIC_KEY`  | The ES512 public key used to verify incoming JWTs.                     |
+| `CARBONE_LANG`                       | Default locale (e.g. `fr`) for `{t()}` and number/date formatting.     |
+| `CARBONE_TIMEZONE`                   | Default IANA timezone (e.g. `Europe/Paris`).                           |
+| `CARBONE_TEMPLATE_MANAGEMENT`        | Enables the template management API (versioning, categories, tags) where licensed. |
+
+## Authentication
+
+When `CARBONE_AUTHENTICATION=true`, every request but `/status` requires a `Bearer` JWT signed with ES512 and verified against
+`CARBONE_AUTHENTICATION_PUBLIC_KEY`. Generate a key pair and a token with the tools bundled in the image:
+
+```bash
+docker run --rm carbone/carbone-ee generate-keys
+docker run --rm carbone/carbone-ee generate-token --iss carbone-user --aud carbone-ee
+```
+
+The token's claims must include `iss: "carbone-user"` and `aud: "carbone-ee"`; Carbone rejects tokens with any other issuer or
+audience. Pass the resulting token to `Karbon.onPremise`:
+
+```kotlin
+val karbon = Karbon.onPremise("http://localhost:4000", token = generatedJwt)
+```
+
+If authentication is disabled (the default), omit `token` (or pass `null`) and no `Authorization` header is sent.
+
+> A malformed or forged token surfaces as `KarbonError.Unauthorized`, even though the server itself answers HTTP 500 with
+> `"Invalid JSON Web Token"` — see [Errors](errors.qd) for how Karbon normalizes this.
+
+## No `carbone-version` header
+
+`Karbon.cloud(...)` sends `carbone-version: 5` on every request, as Carbone Cloud expects. `Karbon.onPremise(...)` sends no
+`carbone-version` header at all, matching what self-hosted `carbone-ee` expects (its behavior is pinned to the image tag, not
+negotiated per-request). `KarbonConfig.apiVersion` is `null` by default for on-premise and can be left alone.
+
+## What Community lacks
+
+Compared to a fully licensed `carbone-ee` or Carbone Cloud, the Community edition typically does not support:
+
+- API versioning (the `carbone-version` header is meaningless there).
+- Template versioning, categories and tags (`UploadOptions.versioning`/`id`, `templates.list`, `templates.categories`,
+  `templates.tags` may be unavailable or return limited data).
+- Dynamic images and charts, and other enterprise-only rendering features.
+
+Karbon does not hide this: calls that Community does not support surface as ordinary `KarbonError.Api` values (typically
+`BadRequest` or `Unexpected`) rather than being silently no-ops. Code that needs to run against both Community and a licensed
+server should treat template management calls as optional and handle the failure explicitly, for example:
+
+```kotlin
+when (val result = either { karbon.templates.list() }) {
+  is Either.Right -> result.value.items
+  is Either.Left -> emptyList() // Community: template management unavailable
+}
+```

@@ -1,2 +1,10 @@
 ###! Getting started
 - [Quickstart](quickstart.qd)
+- [Configuration](configuration.qd)
+
+###! Guides
+- [Rendering](rendering.qd)
+- [Templates](templates.qd)
+- [Errors](errors.qd)
+- [On-premise](on-premise.qd)
+- [Testing](testing.qd)

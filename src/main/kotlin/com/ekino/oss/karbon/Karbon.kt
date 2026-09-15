@@ -24,16 +24,16 @@ import com.ekino.oss.karbon.model.ApiStatus
  * Build one with [cloud] or [onPremise]; instances are immutable and thread-safe.
  */
 public class Karbon
-internal constructor(public val config: KarbonConfig, transport: HttpTransport) {
+internal constructor(public val config: KarbonConfig, transport: HttpTransport) : KarbonClient {
 
   private val calls = Calls(config, transport)
 
-  public val templates: Templates = DefaultTemplates(calls)
-  public val renders: Renders = DefaultRenders(calls, templates)
+  override val templates: Templates = DefaultTemplates(calls)
+  override val renders: Renders = DefaultRenders(calls, templates)
 
   /** `GET /status`. Works without authentication. */
   context(_: Raise<KarbonError>)
-  public suspend fun status(): ApiStatus {
+  override suspend fun status(): ApiStatus {
     val response = calls.execute(HttpRequestSpec(HttpMethod.GET, calls.url("/status")))
     Responses.envelope(response, calls.json)
     val root = calls.json.parseToJsonElement(response.bodyAsText())
