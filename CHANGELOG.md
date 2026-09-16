@@ -2,11 +2,12 @@
 
 All notable changes to Karbone are documented here. Detailed notes for each release live in `release-notes/`.
 
-## Unreleased (0.1.4)
+## 0.1.4 — 2026-09-16
 
 - Generated API reference (Dokka) published under `/api/` of the documentation site; KDoc on every public declaration.
 - `User-Agent` reports the real SDK version, read from the jar manifest (`dev` outside a jar).
 - Documentation readability pass: option tables in the rendering guide, links to the API reference instead of inline enumerations.
+- Docs header shows the project name and the latest release version next to the brand mark.
 
 ## 0.1.3 — 2026-09-16
 

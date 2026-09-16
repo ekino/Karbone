@@ -15,3 +15,4 @@ Internal review build.
 
 - Rendering guide restructured around intent-oriented tables; templates, errors and testing pages link to the API reference instead of
   enumerating identifiers inline.
+- The docs header shows the project name and the release version next to the brand mark.
