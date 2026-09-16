@@ -59,7 +59,25 @@ kotlin {
   compilerOptions { freeCompilerArgs.addAll("-Xjsr305=strict", "-jvm-default=enable") }
 }
 
-tasks.withType<Test>().configureEach { useJUnitPlatform() }
+// Local secrets for integration tests (e.g. CARBONE_TEST_API_KEY) come from a gitignored .env; see
+// .env.example.
+val dotEnv: Map<String, String> =
+  rootProject
+    .file(".env")
+    .takeIf { it.isFile }
+    ?.readLines()
+    .orEmpty()
+    .map { it.trim() }
+    .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
+    .associate { line ->
+      line.substringBefore("=").trim() to line.substringAfter("=").trim().removeSurrounding("\"")
+    }
+
+tasks.withType<Test>().configureEach {
+  useJUnitPlatform()
+  // Real environment wins over .env so CI secrets are never overridden.
+  dotEnv.filterKeys { System.getenv(it) == null }.forEach { (k, v) -> environment(k, v) }
+}
 
 // KarboneConfig reads the SDK version from the jar manifest (User-Agent header).
 tasks.jar {

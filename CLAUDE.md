@@ -59,7 +59,8 @@ Write specs as `ShouldSpec` classes named `*Spec` under `src/test/kotlin/com/eki
 through Testcontainers and is skipped automatically when Docker is unavailable; `integration/CarboneAuthContainerSpec` does the same with
 `CARBONE_AUTHENTICATION=true` using the test key pair in `src/test/resources/auth/` (ES512 JWT, claims `iss=carbone-user`, `aud=carbone-ee`);
 `integration/CarboneCloudSpec` runs against api.carbone.io when `CARBONE_TEST_API_KEY` is set (a _test_ key: pdf output only,
-templates auto-expire after 30 days) and is skipped otherwise; never commit a key; the docx fixture is `src/test/resources/templates/invoice.docx`
+templates auto-expire after 30 days) and is skipped otherwise; put the key in a gitignored `.env` (copy `.env.example`), loaded by the Gradle test task, never in a
+committed file; the docx fixture is `src/test/resources/templates/invoice.docx`
 (built by hand, contains `{d.number}`, `{d.customer.name}`, `:formatC`, `:convEnum`). Example:
 
 ```kotlin
