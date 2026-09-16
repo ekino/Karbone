@@ -36,8 +36,10 @@ tooling, look there first.
 - **Layers** (`internal/`): `Calls` (URL building, transport/IO error → `KarboneError.Transport`), `DefaultTemplates` / `DefaultRenders`
   (endpoint logic, hash-first render: try `POST /render/{sha256}`, on 404 upload then retry once), `http/` (`HttpTransport` = bytes
   in/out, `JdkHttpTransport` on `java.net.http` with multipart writer, auth, `carbone-version`, retry), `wire/` (`RenderBody` builds the
-  JSON body with Carbone wire names such as `SelectPdfVersion`; `Responses` parses the `{success, data, error}` envelope, maps HTTP
-  status → `KarboneError.Api`, extracts filenames from `Content-Disposition`).
+  JSON body with Carbone wire names such as `SelectPdfVersion`; `Dto.kt` holds the `@Serializable` internal DTOs (`Envelope<T>`,
+  `StatusDto`, `UploadDto`, `TemplateInfoDto`...) with `toModel()` mappers; `Responses` decodes them (`envelope`, `data`, `root`, `ack`,
+  `binary`), maps HTTP status → `KarboneError.Api`, turns decoding failures into `KarboneError.Serialization`, extracts filenames from
+  `Content-Disposition`). Public models never carry serialization annotations; add a DTO in `wire/` instead.
 - Public models stay idiomatic (`PdfVersion.PDF_A_3`, `Watermark`...); wire names exist only in `wire/`. `explicitApi()` is on.
 - `RenderData.Raw` exists on purpose: consumers using Jackson (iperia-back) pass pre-serialized JSON.
 - `KarboneError.Api.code` carries Carbone's error code (e.g. `w117`). Versioned upload responses also contain a legacy `templateId`;

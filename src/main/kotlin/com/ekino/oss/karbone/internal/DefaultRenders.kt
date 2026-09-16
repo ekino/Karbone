@@ -5,6 +5,7 @@ package com.ekino.oss.karbone.internal
 
 import arrow.core.raise.Raise
 import arrow.core.raise.context.ensure
+import arrow.core.raise.context.ensureNotNull
 import com.ekino.oss.karbone.KarboneError
 import com.ekino.oss.karbone.Renders
 import com.ekino.oss.karbone.Templates
@@ -14,8 +15,8 @@ import com.ekino.oss.karbone.internal.http.HttpRequestSpec
 import com.ekino.oss.karbone.internal.http.HttpResponseSpec
 import com.ekino.oss.karbone.internal.wire.NotFoundHint
 import com.ekino.oss.karbone.internal.wire.RenderBody
+import com.ekino.oss.karbone.internal.wire.RenderStartedDto
 import com.ekino.oss.karbone.internal.wire.Responses
-import com.ekino.oss.karbone.internal.wire.Responses.str
 import com.ekino.oss.karbone.model.AsyncRenderAccepted
 import com.ekino.oss.karbone.model.OutputFormat
 import com.ekino.oss.karbone.model.RenderData
@@ -26,6 +27,7 @@ import com.ekino.oss.karbone.model.TemplateId
 import com.ekino.oss.karbone.model.TemplateSource
 import com.ekino.oss.karbone.model.Webhook
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.json.JsonElement
 
 internal class DefaultRenders(private val calls: Calls, private val templates: Templates) :
   Renders {
@@ -62,17 +64,20 @@ internal class DefaultRenders(private val calls: Calls, private val templates: T
     }
     val body = RenderBody.build(data, options, calls.json)
     val response = withTemplate(template) { id -> post(id, body, options, download = false) }
-    val envelope =
-      Responses.envelope(
+    val started =
+      Responses.data<RenderStartedDto>(
         response,
         calls.json,
         NotFoundHint.Template(templateIdOf(template)),
         render = true,
       )
-    val renderId = envelope.str("renderId")
-    ensure(renderId != null) {
-      KarboneError.Serialization(IllegalStateException("Missing renderId"), response.bodyAsText())
-    }
+    val renderId =
+      ensureNotNull(started.renderId) {
+        KarboneError.Serialization(
+          IllegalStateException("Missing renderId"),
+          Responses.excerpt(response),
+        )
+      }
     return RenderId(renderId)
   }
 
@@ -100,14 +105,14 @@ internal class DefaultRenders(private val calls: Calls, private val templates: T
       withTemplate(template) { id ->
         post(id, body, options.copy(headers = options.headers + headers), download = false)
       }
-    Responses.envelope(
-      response,
-      calls.json,
-      NotFoundHint.Template(templateIdOf(template)),
-      render = true,
-    )
-    val message = calls.json.parseToJsonElement(response.bodyAsText()).str("message")
-    return AsyncRenderAccepted(message)
+    val envelope =
+      Responses.envelope<JsonElement>(
+        response,
+        calls.json,
+        NotFoundHint.Template(templateIdOf(template)),
+        render = true,
+      )
+    return AsyncRenderAccepted(envelope.message)
   }
 
   /**

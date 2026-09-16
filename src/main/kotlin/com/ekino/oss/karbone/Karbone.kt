@@ -13,9 +13,7 @@ import com.ekino.oss.karbone.internal.http.HttpRequestSpec
 import com.ekino.oss.karbone.internal.http.HttpTransport
 import com.ekino.oss.karbone.internal.http.JdkHttpTransport
 import com.ekino.oss.karbone.internal.wire.Responses
-import com.ekino.oss.karbone.internal.wire.Responses.bool
-import com.ekino.oss.karbone.internal.wire.Responses.int
-import com.ekino.oss.karbone.internal.wire.Responses.str
+import com.ekino.oss.karbone.internal.wire.StatusDto
 import com.ekino.oss.karbone.model.ApiStatus
 
 /**
@@ -41,14 +39,7 @@ public class Karbone internal constructor(config: KarboneConfig, transport: Http
   context(_: Raise<KarboneError>)
   override suspend fun status(): ApiStatus {
     val response = calls.execute(HttpRequestSpec(HttpMethod.GET, calls.url("/status")))
-    Responses.envelope(response, calls.json)
-    val root = calls.json.parseToJsonElement(response.bodyAsText())
-    return ApiStatus(
-      root.bool("success") ?: true,
-      root.int("code"),
-      root.str("message"),
-      root.str("version"),
-    )
+    return Responses.root<StatusDto>(response, calls.json).toModel()
   }
 
   /** Synchronous, exception-based facade for Java and non-coroutine code. */

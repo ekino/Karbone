@@ -2,6 +2,11 @@
 
 All notable changes to Karbone are documented here. Detailed notes for each release live in `release-notes/`.
 
+## Unreleased (0.1.5)
+
+- Wire layer decodes Carbone responses through typed internal DTOs (`kotlinx.serialization`) instead of reading JSON fields one by one; an
+  unparsable 2xx body now yields `KarboneError.Serialization` instead of an exception. No public API change.
+
 ## 0.1.4 — 2026-09-16
 
 - Generated API reference (Dokka) published under `/api/` of the documentation site; KDoc on every public declaration.

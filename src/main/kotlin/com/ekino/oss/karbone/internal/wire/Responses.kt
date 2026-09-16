@@ -5,12 +5,14 @@ package com.ekino.oss.karbone.internal.wire
 
 import arrow.core.raise.Raise
 import arrow.core.raise.context.ensure
+import arrow.core.raise.context.ensureNotNull
 import arrow.core.raise.context.raise
 import com.ekino.oss.karbone.KarboneError
 import com.ekino.oss.karbone.internal.http.HttpResponseSpec
 import com.ekino.oss.karbone.model.RenderId
 import com.ekino.oss.karbone.model.TemplateId
 import java.net.URLDecoder
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -18,11 +20,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.serializer
 
 /** What a 404 means for the endpoint being called. */
 internal sealed interface NotFoundHint {
@@ -41,35 +40,87 @@ internal object Responses {
   private const val HTTP_SERVER_ERROR = 500
 
   /**
-   * Parses a JSON envelope, raising on non-2xx or `success: false`. Returns `data` (may be JsonNull
-   * / absent → empty object).
+   * Decodes a 2xx JSON envelope whose `data` is a [T]. Raises the mapped [KarboneError.Api] on a
+   * non-2xx status or `success: false`, [KarboneError.Serialization] when the body cannot be
+   * decoded.
    */
   context(_: Raise<KarboneError>)
-  fun envelope(
+  inline fun <reified T> envelope(
     response: HttpResponseSpec,
     json: Json,
     hint: NotFoundHint = NotFoundHint.None,
     render: Boolean = false,
-  ): JsonElement {
-    val root = parseObjectOrNull(response, json)
-    if (!response.isSuccess) raise(apiError(response, root, hint, render))
-    ensure(root != null) {
-      KarboneError.Serialization(
-        IllegalStateException("Expected a JSON body"),
-        response.bodyAsText().take(MAX_BODY_EXCERPT),
-      )
-    }
-    val success = root["success"]?.jsonPrimitive?.booleanOrNull ?: true
-    ensure(success) {
+  ): Envelope<T> = envelope(response, json, serializer<T>(), hint, render)
+
+  context(_: Raise<KarboneError>)
+  fun <T> envelope(
+    response: HttpResponseSpec,
+    json: Json,
+    dataSerializer: KSerializer<T>,
+    hint: NotFoundHint,
+    render: Boolean,
+  ): Envelope<T> {
+    if (!response.isSuccess)
+      raise(apiError(response, parseObjectOrNull(response, json), hint, render))
+    val envelope = decodeOrRaise(response, json, Envelope.serializer(dataSerializer))
+    ensure(envelope.success) {
       KarboneError.Unexpected(
         response.status,
-        root.errorMessage(),
-        response.bodyAsText().take(MAX_BODY_EXCERPT),
-        root.errorCode(),
+        envelope.error ?: envelope.message,
+        excerpt(response),
+        envelope.codeText,
       )
     }
-    return root["data"] ?: JsonObject(emptyMap())
+    return envelope
   }
+
+  /** [envelope] then its mandatory `data`. */
+  context(_: Raise<KarboneError>)
+  inline fun <reified T : Any> data(
+    response: HttpResponseSpec,
+    json: Json,
+    hint: NotFoundHint = NotFoundHint.None,
+    render: Boolean = false,
+  ): T {
+    val envelope = envelope<T>(response, json, hint, render)
+    return ensureNotNull(envelope.data) {
+      KarboneError.Serialization(
+        IllegalStateException("Missing data in response"),
+        excerpt(response),
+      )
+    }
+  }
+
+  /** Success check only, for endpoints whose `data` carries nothing useful (delete). */
+  context(_: Raise<KarboneError>)
+  fun ack(
+    response: HttpResponseSpec,
+    json: Json,
+    hint: NotFoundHint = NotFoundHint.None,
+    render: Boolean = false,
+  ) {
+    envelope<JsonElement>(response, json, hint, render)
+  }
+
+  /** Decodes a 2xx body whose fields live at the root rather than under `data` (`GET /status`). */
+  context(_: Raise<KarboneError>)
+  inline fun <reified T> root(response: HttpResponseSpec, json: Json): T {
+    if (!response.isSuccess)
+      raise(apiError(response, parseObjectOrNull(response, json), NotFoundHint.None, false))
+    return decodeOrRaise(response, json, serializer<T>())
+  }
+
+  context(_: Raise<KarboneError>)
+  fun <T> decodeOrRaise(response: HttpResponseSpec, json: Json, deserializer: KSerializer<T>): T =
+    try {
+      json.decodeFromString(deserializer, response.bodyAsText())
+    } catch (e: SerializationException) {
+      raise(KarboneError.Serialization(e, excerpt(response)))
+    } catch (e: IllegalArgumentException) {
+      raise(KarboneError.Serialization(e, excerpt(response)))
+    }
+
+  fun excerpt(response: HttpResponseSpec): String = response.bodyAsText().take(MAX_BODY_EXCERPT)
 
   /** For endpoints that return a file stream on success and a JSON error otherwise. */
   context(_: Raise<KarboneError>)
@@ -158,31 +209,6 @@ internal object Responses {
     if (quoted != null) return quoted
     return Regex("""filename\s*=\s*([^;\s]+)""").find(contentDisposition)?.groupValues?.get(1)
   }
-
-  // ---- typed accessors on `data` -------------------------------------------------------------
-
-  fun JsonElement.str(key: String): String? =
-    (this as? JsonObject)?.get(key)?.let { (it as? JsonPrimitive)?.contentOrNull }
-
-  fun JsonElement.long(key: String): Long? =
-    (this as? JsonObject)?.get(key)?.let { (it as? JsonPrimitive)?.longOrNull }
-
-  fun JsonElement.int(key: String): Int? =
-    (this as? JsonObject)?.get(key)?.let { (it as? JsonPrimitive)?.intOrNull }
-
-  fun JsonElement.bool(key: String): Boolean? =
-    (this as? JsonObject)?.get(key)?.let { (it as? JsonPrimitive)?.booleanOrNull }
-
-  fun JsonElement.strings(key: String): List<String> =
-    (this as? JsonObject)
-      ?.get(key)
-      ?.let { arr ->
-        runCatching { arr.jsonArray.mapNotNull { it.jsonPrimitive.contentOrNull } }.getOrNull()
-      }
-      .orEmpty()
-
-  fun JsonElement.objects(): List<JsonObject> =
-    runCatching { jsonArray.map { it.jsonObject } }.getOrDefault(emptyList())
 
   private const val MAX_BODY_EXCERPT = 2000
   private const val JWT_ERROR_MARKER = "JSON Web Token"

@@ -481,6 +481,16 @@ class KarboneStubServerSpec :
       Karbone::class.java.methods.map { it.name } shouldNotContain "getConfig"
     }
 
+    should("map an unparsable 2xx body to KarboneError.Serialization instead of throwing") {
+      stub.handler = HttpHandler { ex -> ex.respondJson(200, "<html>not json</html>") }
+      val karbone = Karbone.onPremise(stub.baseUrl, token = "tok")
+      val result = either { karbone.status() }
+      result
+        .shouldBeInstanceOf<Either.Left<KarboneError>>()
+        .value
+        .shouldBeInstanceOf<KarboneError.Serialization>()
+    }
+
     should("map a connection failure to KarboneError.Transport") {
       val karbone = Karbone.onPremise("http://127.0.0.1:1") { connectTimeout = 1.seconds }
       val result = either { karbone.status() }

@@ -5,35 +5,30 @@ package com.ekino.oss.karbone.internal
 
 import arrow.core.raise.Raise
 import arrow.core.raise.context.ensure
+import arrow.core.raise.context.ensureNotNull
 import com.ekino.oss.karbone.KarboneError
 import com.ekino.oss.karbone.Templates
 import com.ekino.oss.karbone.internal.http.FilePart
 import com.ekino.oss.karbone.internal.http.HttpBody
 import com.ekino.oss.karbone.internal.http.HttpMethod
 import com.ekino.oss.karbone.internal.http.HttpRequestSpec
+import com.ekino.oss.karbone.internal.wire.NamedDto
 import com.ekino.oss.karbone.internal.wire.NotFoundHint
 import com.ekino.oss.karbone.internal.wire.Responses
-import com.ekino.oss.karbone.internal.wire.Responses.bool
-import com.ekino.oss.karbone.internal.wire.Responses.int
-import com.ekino.oss.karbone.internal.wire.Responses.long
-import com.ekino.oss.karbone.internal.wire.Responses.objects
-import com.ekino.oss.karbone.internal.wire.Responses.str
-import com.ekino.oss.karbone.internal.wire.Responses.strings
+import com.ekino.oss.karbone.internal.wire.TemplateInfoDto
+import com.ekino.oss.karbone.internal.wire.UploadDto
 import com.ekino.oss.karbone.model.ListTemplatesQuery
 import com.ekino.oss.karbone.model.Page
 import com.ekino.oss.karbone.model.TemplateFile
 import com.ekino.oss.karbone.model.TemplateId
 import com.ekino.oss.karbone.model.TemplateInfo
-import com.ekino.oss.karbone.model.TemplateOrigin
 import com.ekino.oss.karbone.model.TemplatePatch
 import com.ekino.oss.karbone.model.TemplateSource
 import com.ekino.oss.karbone.model.UploadOptions
 import com.ekino.oss.karbone.model.UploadedTemplate
-import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -86,31 +81,13 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
           body = HttpBody.Multipart(fields, file),
         )
       )
-    val data = Responses.envelope(response, calls.json)
-    return parseUploaded(data, response.bodyAsText())
-  }
-
-  context(_: Raise<KarboneError>)
-  private fun parseUploaded(data: JsonElement, body: String): UploadedTemplate {
-    // Versioned responses also carry a backward-compatible `templateId`; prefer the versioned shape
-    // when present.
-    val id = data.str("id")
-    val versionId = data.str("versionId")
-    if (id != null && versionId != null) {
-      return UploadedTemplate.Versioned(
-        id = TemplateId(id),
-        versionId = TemplateId(versionId),
-        type = data.str("type"),
-        size = data.long("size"),
-        createdAt = data.long("createdAt")?.let(Instant::ofEpochSecond),
-        deployedAt = data.long("deployedAt")?.takeIf { it > 0 }?.let(Instant::ofEpochSecond),
+    val uploaded = Responses.data<UploadDto>(response, calls.json)
+    return ensureNotNull(uploaded.toModel()) {
+      KarboneError.Serialization(
+        IllegalStateException("Missing templateId or id/versionId"),
+        Responses.excerpt(response),
       )
     }
-    val legacy = data.str("templateId")
-    ensure(legacy != null) {
-      KarboneError.Serialization(IllegalStateException("Missing templateId or id/versionId"), body)
-    }
-    return UploadedTemplate.Legacy(TemplateId(legacy))
   }
 
   context(_: Raise<KarboneError>)
@@ -145,15 +122,21 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
         calls.url("/template/${id.value}"),
         body = HttpBody.Json(calls.json.encodeToString(JsonObject.serializer(), body)),
       )
-    val data = Responses.envelope(calls.execute(request), calls.json, NotFoundHint.Template(id))
-    return templateInfo(data, fallbackId = id)
+    val response = calls.execute(request)
+    val info = Responses.data<TemplateInfoDto>(response, calls.json, NotFoundHint.Template(id))
+    return ensureNotNull(info.toModel(fallbackId = id)) {
+      KarboneError.Serialization(
+        IllegalStateException("Template entry without id"),
+        Responses.excerpt(response),
+      )
+    }
   }
 
   context(_: Raise<KarboneError>)
   override suspend fun delete(id: TemplateId) {
     val response =
       calls.execute(HttpRequestSpec(HttpMethod.DELETE, calls.url("/template/${id.value}")))
-    Responses.envelope(response, calls.json, NotFoundHint.Template(id))
+    Responses.ack(response, calls.json, NotFoundHint.Template(id))
   }
 
   context(_: Raise<KarboneError>)
@@ -176,13 +159,20 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
         ),
       )
     val response = calls.execute(HttpRequestSpec(HttpMethod.GET, url))
-    val root = Responses.envelope(response, calls.json)
-    // `hasMore` / `nextCursor` sit next to `data` at the root; re-read them from the body.
-    val rootObject = calls.json.parseToJsonElement(response.bodyAsText())
+    val envelope = Responses.envelope<List<TemplateInfoDto>>(response, calls.json)
+    val items =
+      envelope.data.orEmpty().map { dto ->
+        ensureNotNull(dto.toModel()) {
+          KarboneError.Serialization(
+            IllegalStateException("Template entry without id or versionId"),
+            Responses.excerpt(response),
+          )
+        }
+      }
     return Page(
-      items = root.objects().map { templateInfo(it) },
-      hasMore = rootObject.bool("hasMore") ?: false,
-      nextCursor = rootObject.str("nextCursor"),
+      items = items,
+      hasMore = envelope.hasMore ?: false,
+      nextCursor = envelope.nextCursor,
     )
   }
 
@@ -207,12 +197,8 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
 
   context(_: Raise<KarboneError>)
   private suspend fun names(path: String): List<String> {
-    val data =
-      Responses.envelope(
-        calls.execute(HttpRequestSpec(HttpMethod.GET, calls.url(path))),
-        calls.json,
-      )
-    return data.objects().mapNotNull { it.str("name") }
+    val response = calls.execute(HttpRequestSpec(HttpMethod.GET, calls.url(path)))
+    return Responses.data<List<NamedDto>>(response, calls.json).mapNotNull { it.name }
   }
 
   context(_: Raise<KarboneError>)
@@ -225,30 +211,5 @@ internal class DefaultTemplates(private val calls: Calls) : Templates {
           )
         }
       }
-  }
-
-  context(_: Raise<KarboneError>)
-  private fun templateInfo(o: JsonElement, fallbackId: TemplateId? = null): TemplateInfo {
-    val id = o.str("id") ?: o.str("versionId") ?: fallbackId?.value
-    ensure(id != null) {
-      KarboneError.Serialization(
-        IllegalStateException("Template entry without id or versionId"),
-        o.toString(),
-      )
-    }
-    return TemplateInfo(
-      id = TemplateId(id),
-      versionId = o.str("versionId")?.let(::TemplateId),
-      name = o.str("name"),
-      category = o.str("category"),
-      comment = o.str("comment"),
-      tags = o.strings("tags"),
-      type = o.str("type"),
-      size = o.long("size"),
-      origin = o.int("origin")?.let(TemplateOrigin::fromCode),
-      createdAt = o.long("createdAt")?.let(Instant::ofEpochSecond),
-      deployedAt = o.long("deployedAt")?.takeIf { it > 0 }?.let(Instant::ofEpochSecond),
-      expireAt = o.long("expireAt")?.takeIf { it > 0 }?.let(Instant::ofEpochSecond),
-    )
   }
 }
