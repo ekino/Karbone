@@ -12,13 +12,18 @@ import kotlinx.coroutines.withContext
 
 /** A generated document. */
 public class RenderedDocument(
+  /** Document bytes. */
   public val content: ByteArray,
+  /** File name from `Content-Disposition`, when Carbone provided one. */
   public val fileName: String?,
+  /** MIME type from the response, when Carbone provided one. */
   public val contentType: String?,
 ) {
 
+  /** Wraps [content] in a fresh [InputStream]. */
   public fun inputStream(): InputStream = ByteArrayInputStream(content)
 
+  /** Writes [content] to [path], overwriting it if it exists. */
   public suspend fun writeTo(path: Path): Path =
     withContext(Dispatchers.IO) { path.apply { writeBytes(content) } }
 

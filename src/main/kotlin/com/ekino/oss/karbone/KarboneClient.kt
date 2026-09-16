@@ -11,7 +11,10 @@ import com.ekino.oss.karbone.model.ApiStatus
  * `com.ekino.oss.karbone.testing.FakeKarbone` is an in-memory double.
  */
 public interface KarboneClient {
+  /** Template upload, download, listing and metadata operations. */
   public val templates: Templates
+
+  /** Document generation operations. */
   public val renders: Renders
 
   /** `GET /status`. */

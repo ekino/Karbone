@@ -2,7 +2,7 @@
 
 Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API. Start from `Karbone` (`cloud` / `onPremise`), then
 `Templates` and `Renders`. Every I/O method is `context(_: Raise<KarboneError>) suspend fun`; Java callers use `KarboneBlocking`.
-The guides live on the [documentation site](../index.html).
+The guides live on the documentation site, one level up from this reference.
 
 # Package com.ekino.oss.karbone
 

@@ -46,20 +46,24 @@ import kotlinx.serialization.json.put
  *
  * - Templates are stored by their SHA-256, exactly like Carbone's legacy ids; the hash-first render
  *   flow works as with the real client.
- * - [render] produces bytes through [renderer]; the default writes a small JSON description of the
- *   request, with a filename derived from `reportName` / `convertTo`.
+ * - [com.ekino.oss.karbone.Renders.render] produces bytes through [renderer]; the default writes a
+ *   small JSON description of the request, with a filename derived from `reportName` / `convertTo`.
  * - Every call is recorded in [calls]; [failNextWith] injects one error on the next call.
  */
 public class FakeKarbone(
+  /** Value returned by [status]. Mutable so a test can simulate a degraded or custom status. */
   public var status: ApiStatus = ApiStatus(true, HTTP_OK, "OK", "fake"),
+  /** Strategy used to produce rendered bytes. Defaults to [Renderer.Default]. */
   public var renderer: Renderer = Renderer.Default,
 ) : KarboneClient {
 
   /** Produces the bytes of a rendered document. */
   public fun interface Renderer {
+    /** Builds the bytes for [request]. */
     public fun render(request: RenderRequest): ByteArray
 
     public companion object {
+      /** Writes a small JSON description of the request (template id, data, target format). */
       @JvmField
       public val Default: Renderer = Renderer { request ->
         buildJsonObject {
@@ -73,6 +77,15 @@ public class FakeKarbone(
     }
   }
 
+  /**
+   * A render request passed to [Renderer.render].
+   *
+   * @property templateId id (SHA-256) of the resolved template.
+   * @property template raw template bytes, or `null` if the template id was not found in the store.
+   * @property data render data as parsed JSON, or `null` for a pure
+   *   [com.ekino.oss.karbone.Renders.convert].
+   * @property options render options as passed by the caller.
+   */
   public data class RenderRequest(
     val templateId: TemplateId,
     val template: ByteArray?,
@@ -80,6 +93,14 @@ public class FakeKarbone(
     val options: RenderOptions,
   )
 
+  /**
+   * A template held in the in-memory store.
+   *
+   * @property id template id (SHA-256 of [content]).
+   * @property content raw template bytes.
+   * @property options upload/metadata options the template was stored with.
+   * @property createdAt time the template was added to the store.
+   */
   public data class StoredTemplate(
     val id: TemplateId,
     val content: ByteArray,
@@ -87,21 +108,30 @@ public class FakeKarbone(
     val createdAt: Instant,
   )
 
+  /** One call recorded in [calls]. */
   public sealed interface Call {
+    /** A [Templates.upload] call. */
     public data class Upload(val id: TemplateId, val options: UploadOptions) : Call
 
+    /** A [Templates.download] call. */
     public data class Download(val id: TemplateId) : Call
 
+    /** A [Templates.update] call. */
     public data class Update(val id: TemplateId, val patch: TemplatePatch) : Call
 
+    /** A [Templates.delete] call. */
     public data class Delete(val id: TemplateId) : Call
 
+    /** A [Templates.list] call. */
     public data class List(val query: ListTemplatesQuery) : Call
 
+    /** A [Renders.render], [Renders.start], [Renders.startAsync] or [Renders.convert] call. */
     public data class Render(val request: RenderRequest, val webhook: Webhook?) : Call
 
+    /** A [Renders.download] call. */
     public data class DownloadRender(val id: RenderId) : Call
 
+    /** A [KarboneClient.status] call. */
     public data object Status : Call
   }
 
@@ -133,6 +163,10 @@ public class FakeKarbone(
     return id
   }
 
+  /**
+   * Clears stored templates, recorded [calls] and [rendered] documents, and any pending
+   * [failNextWith] error.
+   */
   public fun reset() {
     store.clear()
     pendingRenders.clear()

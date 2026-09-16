@@ -61,6 +61,17 @@ kotlin {
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }
 
+// KarboneConfig reads the SDK version from the jar manifest (User-Agent header).
+tasks.jar {
+  manifest {
+    attributes(
+      "Implementation-Title" to "Karbone",
+      "Implementation-Version" to project.version.toString(),
+      "Implementation-Vendor" to "ekino",
+    )
+  }
+}
+
 // Required by the io.kotest plugin (no default in 6.2.x): enables the `kotest` / `jvmKotest` tasks.
 kotest { customGradleTask.set(true) }
 

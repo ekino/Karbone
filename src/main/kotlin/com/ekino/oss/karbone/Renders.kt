@@ -30,6 +30,7 @@ public interface Renders {
     options: RenderOptions = RenderOptions.None,
   ): RenderedDocument
 
+  /** Same as [render] but [RenderOptions] are built inline through [configure]. */
   context(_: Raise<KarboneError>)
   public suspend fun render(
     template: TemplateSource,

@@ -73,6 +73,10 @@ public class Karbone internal constructor(config: KarboneConfig, transport: Http
       configure: KarboneConfig.Builder.() -> Unit = {},
     ): Karbone = create(KarboneConfig.onPremise(baseUrl, token, configure))
 
+    /**
+     * Builds a client from an explicit [KarboneConfig], for setups not covered by [cloud] or
+     * [onPremise].
+     */
     @JvmStatic
     public fun create(config: KarboneConfig): Karbone = Karbone(config, JdkHttpTransport(config))
 

@@ -33,9 +33,18 @@ import kotlinx.coroutines.runBlocking
  */
 public class KarboneBlocking internal constructor(private val karbone: KarboneClient) {
 
+  /** Blocking view of template operations. */
   public val templates: TemplatesBlocking = TemplatesBlocking(karbone)
+
+  /** Blocking view of render operations. */
   public val renders: RendersBlocking = RendersBlocking(karbone)
 
+  /**
+   * Delegates to [KarboneClient.status], blocking the calling thread and throwing
+   * [KarboneException] on failure.
+   *
+   * @see com.ekino.oss.karbone.KarboneClient.status
+   */
   public fun status(): ApiStatus = call { karbone.status() }
 
   public companion object {
@@ -52,37 +61,90 @@ public class KarboneBlocking internal constructor(private val karbone: KarboneCl
  */
 public fun KarboneClient.blocking(): KarboneBlocking = KarboneBlocking(this)
 
+/**
+ * Blocking, exception-based view of [com.ekino.oss.karbone.Templates]; every method throws
+ * [KarboneException] on failure.
+ */
 public class TemplatesBlocking internal constructor(private val karbone: KarboneClient) {
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.upload].
+   *
+   * @see com.ekino.oss.karbone.Templates.upload
+   */
   @JvmOverloads
   public fun upload(
     source: TemplateSource.Content,
     options: UploadOptions = UploadOptions(),
   ): UploadedTemplate = call { karbone.templates.upload(source, options) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.download].
+   *
+   * @see com.ekino.oss.karbone.Templates.download
+   */
   public fun download(id: TemplateId): TemplateFile = call { karbone.templates.download(id) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.update].
+   *
+   * @see com.ekino.oss.karbone.Templates.update
+   */
   public fun update(id: TemplateId, patch: TemplatePatch): TemplateInfo = call {
     karbone.templates.update(id, patch)
   }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.delete].
+   *
+   * @see com.ekino.oss.karbone.Templates.delete
+   */
   public fun delete(id: TemplateId): Unit = call { karbone.templates.delete(id) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.list].
+   *
+   * @see com.ekino.oss.karbone.Templates.list
+   */
   @JvmOverloads
   public fun list(query: ListTemplatesQuery = ListTemplatesQuery()): Page<TemplateInfo> = call {
     karbone.templates.list(query)
   }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.listAll], collecting the whole flow into a list.
+   *
+   * @see com.ekino.oss.karbone.Templates.listAll
+   */
   @JvmOverloads
   public fun listAll(query: ListTemplatesQuery = ListTemplatesQuery()): List<TemplateInfo> = call {
     karbone.templates.listAll(query).toList()
   }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.categories].
+   *
+   * @see com.ekino.oss.karbone.Templates.categories
+   */
   public fun categories(): List<String> = call { karbone.templates.categories() }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Templates.tags].
+   *
+   * @see com.ekino.oss.karbone.Templates.tags
+   */
   public fun tags(): List<String> = call { karbone.templates.tags() }
 }
 
+/**
+ * Blocking, exception-based view of [com.ekino.oss.karbone.Renders]; every method throws
+ * [KarboneException] on failure.
+ */
 public class RendersBlocking internal constructor(private val karbone: KarboneClient) {
+  /**
+   * Delegates to [com.ekino.oss.karbone.Renders.render].
+   *
+   * @see com.ekino.oss.karbone.Renders.render
+   */
   @JvmOverloads
   public fun render(
     template: TemplateSource,
@@ -90,6 +152,11 @@ public class RendersBlocking internal constructor(private val karbone: KarboneCl
     options: RenderOptions = RenderOptions.None,
   ): RenderedDocument = call { karbone.renders.render(template, data, options) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Renders.start].
+   *
+   * @see com.ekino.oss.karbone.Renders.start
+   */
   @JvmOverloads
   public fun start(
     template: TemplateSource,
@@ -97,8 +164,18 @@ public class RendersBlocking internal constructor(private val karbone: KarboneCl
     options: RenderOptions = RenderOptions.None,
   ): RenderId = call { karbone.renders.start(template, data, options) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Renders.download].
+   *
+   * @see com.ekino.oss.karbone.Renders.download
+   */
   public fun download(id: RenderId): RenderedDocument = call { karbone.renders.download(id) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Renders.startAsync].
+   *
+   * @see com.ekino.oss.karbone.Renders.startAsync
+   */
   @JvmOverloads
   public fun startAsync(
     template: TemplateSource,
@@ -107,6 +184,11 @@ public class RendersBlocking internal constructor(private val karbone: KarboneCl
     options: RenderOptions = RenderOptions.None,
   ): AsyncRenderAccepted = call { karbone.renders.startAsync(template, data, webhook, options) }
 
+  /**
+   * Delegates to [com.ekino.oss.karbone.Renders.convert].
+   *
+   * @see com.ekino.oss.karbone.Renders.convert
+   */
   @JvmOverloads
   public fun convert(
     document: TemplateSource.Content,

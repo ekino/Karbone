@@ -14,6 +14,7 @@ public sealed interface RenderData {
   /** Pre-serialized JSON, for callers that already use another JSON library (Jackson, Gson...). */
   public data class Raw(val json: String) : RenderData
 
+  /** A kotlinx.serialization JSON element, used as-is. */
   public data class Element(val json: JsonElement) : RenderData
 
   /** A value serialized by Karbone with kotlinx.serialization. */
@@ -21,16 +22,21 @@ public sealed interface RenderData {
     override fun toString(): String = "RenderData.Value($value)"
   }
 
+  /** Factory functions for each [RenderData] variant. */
   public companion object {
     /** `{}`: templating runs with an empty data-set, tags resolve to empty. */
     @JvmField public val Empty: RenderData = Element(JsonObject(emptyMap()))
 
+    /** Wraps pre-serialized JSON; see [Raw]. */
     @JvmStatic public fun raw(json: String): RenderData = Raw(json)
 
+    /** Wraps a kotlinx.serialization JSON element; see [Element]. */
     @JvmStatic public fun of(json: JsonElement): RenderData = Element(json)
 
+    /** Serializes [value] with the reified kotlinx.serialization serializer for [T]. */
     public inline fun <reified T> of(value: T): RenderData = Value(value, serializer<T>())
 
+    /** Serializes [value] with the given [serializer]. */
     public fun <T> of(value: T, serializer: KSerializer<T>): RenderData = Value(value, serializer)
   }
 }
