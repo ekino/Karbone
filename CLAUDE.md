@@ -13,7 +13,7 @@ tooling, look there first.
 
 ## Toolchain
 
-- Kotlin 2.4.20, JVM toolchain 21 (foojay resolver), Gradle 9.7.0 via wrapper. Always use `./gradlew`.
+- Kotlin 2.4.20, JVM toolchain 21 (foojay resolver), Gradle 9.7.1 via wrapper. Always use `./gradlew`.
 - Single Gradle module (root project). Dependency versions live in `gradle/libs.versions.toml`; never hardcode versions in
   `build.gradle.kts`.
 - Version: `localVersion` in `gradle.properties` locally; in GitHub Actions derived from `v*` tags or `git describe`.
