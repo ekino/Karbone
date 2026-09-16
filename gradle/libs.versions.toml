@@ -7,6 +7,9 @@ kotlinx-serialization = "1.11.0"
 # Kept at the version managed by Spring Boot 4.x: Karbone must not reference newer coroutines symbols (see docs/configuration.qd).
 kotlinx-coroutines = "1.10.2"
 
+# Documentation
+dokka = "2.2.0"
+
 # Code Quality
 spotless = "8.9.0"
 detekt = "2.0.0-alpha.6"
@@ -50,6 +53,7 @@ kotest-extended = ["kotest-runner-junit5", "kotest-assertions-core", "kotest-pro
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 kotest = { id = "io.kotest", version.ref = "kotest" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }

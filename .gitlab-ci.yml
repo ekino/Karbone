@@ -64,7 +64,8 @@ pages:
     - unzip -q /tmp/quarkdown.zip -d /tmp/qd
   script:
     - /tmp/qd/quarkdown/bin/quarkdown c docs/main.qd -o build/docs --clean
-    - rm -rf public && mv build/docs/Karbone public
+    - chmod +x ./gradlew && ./gradlew dokkaGenerate --console=plain
+    - rm -rf public && mv build/docs/Karbone public && cp -r build/dokka/html public/api
   artifacts:
     paths:
       - public

@@ -68,9 +68,11 @@ karbone.templates.listAll(ListTemplatesQuery(category = "billing")).collect { in
 ```
 
 `list` returns one `Page` (`GET /templates`); `listAll` returns a `Flow<TemplateInfo>` that follows `nextCursor` until
-`hasMore` is `false`, raising on the same `Raise<KarboneError>` used to collect it. `ListTemplatesQuery` filters by `id`,
-`versionId`, `category`, `origin` (`TemplateOrigin`: `API`, `STUDIO`, `SALESFORCE`, `ODOO`, `HUBSPOT`), `includeVersions`, and
-free-text `search`, with `limit` capped at `ListTemplatesQuery.MAX_LIMIT` (100).
+`hasMore` is `false`, raising on the same `Raise<KarboneError>` used to collect it.
+
+`ListTemplatesQuery` filters on `id`, `versionId`, `category`, `origin` (where the template came from — API, Studio, or a
+connector such as Salesforce), `includeVersions`, and free-text `search`, with `limit` capped at
+`ListTemplatesQuery.MAX_LIMIT` (100). See the [API reference](@/api/index.html) for the exhaustive `TemplateOrigin` values.
 
 Template listing, like versioning, requires template management and may not be available on Community edition; see
 [On-premise](on-premise.qd).
@@ -85,7 +87,8 @@ val tags: List<String> = karbone.templates.tags()               // GET /template
 ## Template identity
 
 A legacy template's id is deterministic: the SHA-256 hex digest of its bytes, computed the same way by Karbone
-(`TemplateSource.sha256Hex`) and by Carbone. Two uploads of byte-identical content get the same id. A versioned template's
-identity is split in two: a stable `id` for the template itself, and a `versionId` that changes with every new version
-(itself a content hash). Pick legacy ids for stateless, content-addressed templates; pick versioned ids when you need to
-update a template in place while keeping a stable reference to "the current invoice template".
+(`TemplateSource.sha256Hex`) and by Carbone. Two uploads of byte-identical content get the same id.
+
+A versioned template's identity is split in two: a stable `id` for the template itself, and a `versionId` that changes with
+every new version (itself a content hash). Pick legacy ids for stateless, content-addressed templates; pick versioned ids
+when you need to update a template in place while keeping a stable reference to "the current invoice template".

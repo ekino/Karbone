@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.kotlin.jvm)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.dokka)
   alias(libs.plugins.kotest)
   alias(libs.plugins.spotless)
   alias(libs.plugins.detekt)
@@ -170,4 +171,26 @@ if (gitlabApiUrl != null && gitlabProjectId != null) {
       }
     }
   }
+}
+
+// API reference (KDoc → HTML), published under /api/ of the documentation site.
+dokka {
+  moduleName.set("Karbone")
+  dokkaSourceSets.main {
+    includes.from("docs/api-module.md")
+    sourceLink {
+      localDirectory.set(file("src/main/kotlin"))
+      remoteUrl("https://github.com/ekino/Karbone/tree/main/src/main/kotlin")
+      remoteLineSuffix.set("#L")
+    }
+    perPackageOption {
+      matchingRegex.set(""".*\.internal.*""")
+      suppress.set(true)
+    }
+    externalDocumentationLinks.register("arrow") {
+      url("https://apidocs.arrow-kt.io/")
+      packageListUrl("https://apidocs.arrow-kt.io/package-list")
+    }
+  }
+  dokkaPublications.html { outputDirectory.set(layout.buildDirectory.dir("dokka/html")) }
 }

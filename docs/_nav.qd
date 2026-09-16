@@ -10,4 +10,7 @@
 - [Testing](testing.qd)
 - [Logging](logging.qd)
 
+###! Reference
+- [API reference](@/api/index.html)
+
 .include {_dev-nav.qd}

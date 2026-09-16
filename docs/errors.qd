@@ -25,11 +25,12 @@ may only produce PDF output: asking for DOCX yields `Unexpected(status=200, code
 | `Serialization`            | A response body that could not be parsed                                                | `cause`, `body`                       |
 | `TemplateRead`             | Local template content could not be read                                                | `source`, `cause`                     |
 
-`Unauthorized`, `TemplateNotFound`, `RenderNotFound`, `PayloadTooLarge`, `UnsupportedTemplateFormat`, `BadRequest`,
-`RenderFailed` and `Unexpected` all implement `KarboneError.Api`, which exposes `status` and `message` uniformly. **`message`
-is always the raw `error` text from the Carbone response, never rewritten or translated** — safe to log or surface as-is.
+Every row above except the last four (`InvalidRequest`, `Transport`, `Serialization`, `TemplateRead`) implements
+`KarboneError.Api`, which exposes `status` and `message` uniformly. **`message` is always the raw `error` text from the
+Carbone response, never rewritten or translated** — safe to log or surface as-is.
 
-Every `KarboneError` has a `describe(): String` for a human-readable summary, useful in logs.
+Every `KarboneError` has a `describe(): String` for a human-readable summary, useful in logs. See the
+[API reference](@/api/index.html) for the full shape of each error type.
 
 ## Handling errors with `Raise`
 

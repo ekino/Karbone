@@ -34,8 +34,8 @@ Key surface:
 
 - **`addTemplate(content, options)`** — pre-loads a template, returning its (SHA-256) `TemplateId`, so renders and downloads
   against a known id work without going through `upload`.
-- **`calls`** — every call made on the fake, in order, as a sealed `Call` (`Upload`, `Download`, `Update`, `Delete`, `List`,
-  `Render`, `DownloadRender`, `Status`). Useful to assert what a service under test actually did.
+- **`calls`** — every call made on the fake, in order, as a sealed `Call` value (one variant per `KarboneClient` method — see
+  the [API reference](@/api/index.html) for the full list). Useful to assert what a service under test actually did.
 - **`rendered`** — every `RenderedDocument` produced so far, in order.
 - **`failNextWith(error)`** — the *next* call, whatever it is, raises `error` instead of running. Use it to test a single
   failure path without standing up a whole failing scenario.

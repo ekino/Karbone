@@ -67,34 +67,57 @@ val options = RenderOptions.build {
 }
 ```
 
-Option groups:
+Each field maps 1:1 to a Carbone request field. The tables below give the shape of each group; the exhaustive list with types and
+defaults is in the [API reference](@/api/index.html) (`RenderOptions`, `PdfOptions`, `ImageOptions`, `CsvOptions`).
 
-- **`convertTo` / `OutputFormat`** — the output format. `OutputFormat.Simple` covers formats without options (`DOCX`, `XLSX`,
-  `PPTX`, `ODT`, `ODS`, `ODP`, `HTML`, `TXT`, `MD`, `EPUB`, `SVG`, `WEBP`, ...); `Pdf`, `Jpg`, `Png` and `Csv` carry typed
-  options. The builder exposes `pdf { ... }`, `jpg(options)`, `png(options)` and `csv(options)` shortcuts.
-  - **`PdfOptions`**: `version` (`PdfVersion`: `PDF_1_6_DEFAULT`, `PDF_A_1`, `PDF_A_2`, `PDF_A_3`, `PDF_1_5`, `PDF_1_6`),
-    `encryptFile`, `documentOpenPassword`, `permissionPassword`, `restrictPermissions`, `printing` (`PdfPrinting`), `changes`
-    (`PdfChanges`), `watermark` (legacy single centered watermark) / `watermarks` (up to `PdfOptions.MAX_WATERMARKS`, each a
-    `Watermark` with `anchor`, `offsetX`/`offsetY`, `rotation`, `color`, `size`, `opacity`, `font`, `fromPage`/`toPage`, and
-    text supporting `{#PAGE_NUMBER}` / `{#PAGE_TOTAL}`), `pdfUaCompliance`, `useTaggedPdf`, `pageRange` (e.g. `"1-3"`),
-    `useLosslessCompression`, `reduceImageResolution`, `maxImageResolution` (`ImageResolution`), `exportFormFields`,
-    `exportNotes`.
-  - **`ImageOptions`** (JPG/PNG): `pixelWidth`, `pixelHeight`, `colorMode` (`ColorMode`), `quality` (JPG, 1..100),
-    `compression` (PNG, 0..9), `interlaced` / `translucent` (PNG only).
-  - **`CsvOptions`**: `fieldSeparator`, `textDelimiter`, `characterSet` (a LibreOffice charset code, e.g. `"76"` for UTF-8).
-- **`converter`** — `PdfConverter` (`LIBRE_OFFICE`, `ONLY_OFFICE`, `CHROMIUM`); only meaningful when converting to PDF.
-- **`timezone` / `lang`** — IANA timezone (server default `Europe/Paris`) and locale (e.g. `"fr-fr"`), driving `{t()}`,
-  `:formatN` and `:formatC`.
-- **`enum` / `translations` / `currency`** — `enum` feeds the `convEnum` formatter; `translations` (keyed by locale) is used
-  with `{t()}` and `lang`; `currency` is a `CurrencyConversion(source, target, rates)`.
-- **`reportName`** — the file name sent back in `Content-Disposition`; may itself contain Carbone tags (e.g.
-  `"invoice-{d.number}"`).
-- **`hardRefresh`** — recompute pagination and the table of contents at the end of rendering; requires `convertTo`.
-- **`batch` / webhook** — `BatchOptions(splitBy, output, reportName)` for multi-report generation from an array in the data;
-  batch rendering requires an asynchronous render (`startAsync` with a `Webhook`) and is rejected as `InvalidRequest` on
-  `render`/`start`.
-- **`headers`** — extra HTTP headers sent with the request, e.g. to relay a token to a downstream service through
-  `carbone-egress-header-*`.
+### Output format (`convertTo`)
+
+| Format                        | Options type   | Builder shortcut       |
+| ----------------------------- | -------------- | ---------------------- |
+| `OutputFormat.Pdf`            | `PdfOptions`   | `pdf { ... }`          |
+| `OutputFormat.Jpg` / `Png`    | `ImageOptions` | `jpg(...)` / `png(...)` |
+| `OutputFormat.Csv`            | `CsvOptions`   | `csv(...)`             |
+| `OutputFormat.DOCX`, `XLSX`, `PPTX`, `ODT`, `ODS`, `ODP`, `HTML`, `TXT`, `MD`, `EPUB`, `SVG`, `WEBP` | none (`OutputFormat.Simple`) | `convertTo = OutputFormat.DOCX` |
+
+`converter` picks the PDF engine (`LIBRE_OFFICE`, `ONLY_OFFICE`, `CHROMIUM`) and is only accepted together with a PDF output.
+
+### PDF options, by intent
+
+| You want to...                       | Use                                                                                       |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Produce an archival PDF              | `version = PdfVersion.PDF_A_1 / PDF_A_2 / PDF_A_3`; `pdfUaCompliance`, `useTaggedPdf` for accessibility |
+| Protect the document                 | `encryptFile`, `documentOpenPassword`, `permissionPassword`, `restrictPermissions`, `printing`, `changes` |
+| Stamp it                             | `watermark("text") { anchor; rotation; opacity; color; size; font; fromPage; toPage }`, up to `PdfOptions.MAX_WATERMARKS`; text may use `{#PAGE_NUMBER}` and `{#PAGE_TOTAL}` |
+| Control size and pages               | `pageRange` (e.g. `"1-3"`), `useLosslessCompression`, `reduceImageResolution`, `maxImageResolution` |
+| Keep form fields or notes            | `exportFormFields`, `exportNotes`                                                         |
+
+### Image and CSV options
+
+| Type           | Fields                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| `ImageOptions` | `pixelWidth`, `pixelHeight`, `colorMode`; JPG only: `quality` (1..100); PNG only: `compression` (0..9), `interlaced`, `translucent` |
+| `CsvOptions`   | `fieldSeparator`, `textDelimiter`, `characterSet` (LibreOffice charset code, `"76"` = UTF-8)     |
+
+### Localisation and data helpers
+
+| Field                    | Effect                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| `timezone`               | IANA zone for `:formatD`; server default `Europe/Paris`                                    |
+| `lang`                   | Locale such as `"fr-fr"`, drives `{t()}`, `:formatN`, `:formatC`                             |
+| `translations`           | Dictionaries keyed by locale, used with `{t()}` and `lang`                                 |
+| `enum`                   | Enumerations for the `convEnum` formatter                                                  |
+| `currency`               | `CurrencyConversion(source, target, rates)` for `:formatC`                                 |
+| `complement`             | Extra data reachable through `{c.}` tags                                                   |
+| `variableStr`            | Predefined aliases                                                                         |
+
+### Output and transport
+
+| Field          | Effect                                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| `reportName`   | File name returned in `Content-Disposition`; may contain Carbone tags (`"invoice-{d.number}"`)             |
+| `hardRefresh`  | Recompute pagination and table of contents after rendering; requires `convertTo`                          |
+| `batch`        | `BatchOptions(splitBy, output, reportName)`: one report per array item; requires `startAsync` with a webhook, rejected as `InvalidRequest` on `render` / `start` |
+| `headers`      | Extra HTTP headers, e.g. `carbone-egress-header-authorization` to relay a token downstream                 |
 
 ## Sync vs. async
 

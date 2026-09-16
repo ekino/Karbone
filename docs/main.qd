@@ -2,7 +2,7 @@
 .docdescription {A modern Kotlin SDK for the Carbone.io document generation API.}
 .htmloptions baseurl:{https://ekino.github.io/Karbone}
 .include {docs}
-
+.pageformat width:{50%}
 
 Karbone is a Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API.
 

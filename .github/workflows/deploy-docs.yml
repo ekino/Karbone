@@ -45,6 +45,9 @@ jobs:
       - name: Build site with Quarkdown
         run: quarkdown c docs/main.qd -o build/docs --clean
 
+      - name: Build API reference with Dokka
+        run: ./gradlew dokkaGenerate --console=plain && cp -r build/dokka/html build/docs/Karbone/api
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 

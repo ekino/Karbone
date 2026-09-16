@@ -25,6 +25,11 @@ repositories {
 }
 ```
 
+## Documentation
+
+Guides and the generated API reference are published with the documentation site (`docs/`, Quarkdown + Dokka).
+Locally: `./gradlew dokkaGenerate` writes the API reference to `build/dokka/html`.
+
 ## Development
 
 Requires JDK 21.
