@@ -115,7 +115,7 @@ quarkdown c docs/main.qd -p -w                     # live preview with reload
 ./gradlew build                  # compile, detekt, spotlessCheck, tests
 ./gradlew test                   # all tests (JUnit Platform, used by `check`)
 ./gradlew kotest                 # all tests via the io.kotest plugin, with Kotest's own console reporter
-./gradlew test --tests "com.ekino.oss.karbone.KarboneSpec"                # one spec class
+./gradlew test --tests "com.ekino.oss.karbone.KarboneSpec"                # one spec class (fully qualified: with the Kotest engine a leading wildcard such as "*Spec" matches nothing)
 ./gradlew test --tests "com.ekino.oss.karbone.KarboneSpec" -Dkotest.filter.tests="should expose*"   # one test by name glob
 ./gradlew detektMain             # static analysis only
 ./gradlew publishToMavenLocal    # local publication (vanniktech maven-publish)
