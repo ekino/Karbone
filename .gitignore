@@ -48,3 +48,4 @@ bin/
 
 ### CI Gradle home (see .gitlab-ci.yml) ###
 .gradle-home/
+quarkdown-output/

@@ -478,7 +478,7 @@ class KarboneStubServerSpec :
       cloud.apiVersion shouldBe 5
       val onPremise = Karbone.onPremise("http://localhost:4000", token = "jwt")
       onPremise.apiVersion.shouldBeNull()
-      Karbone::class.members.map { it.name } shouldNotContain "config"
+      Karbone::class.java.methods.map { it.name } shouldNotContain "getConfig"
     }
 
     should("map a connection failure to KarboneError.Transport") {
