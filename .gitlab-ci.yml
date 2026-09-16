@@ -60,11 +60,12 @@ pages:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
-    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl unzip > /dev/null
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl unzip git > /dev/null
     - curl -fsSL -o /tmp/quarkdown.zip "https://github.com/iamgio/quarkdown/releases/download/v${QUARKDOWN_VERSION}/quarkdown-linux-x64.zip"
     - unzip -q /tmp/quarkdown.zip -d /tmp/qd
   script:
-    - VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); [ -n "$VERSION" ] && echo ".var {karboneversion} {$VERSION}" > docs/_version.qd
+    - VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//') || true
+    - if [ -n "$VERSION" ]; then echo ".var {karboneversion} {$VERSION}" > docs/_version.qd; else echo "no tag found, keeping the committed docs version"; fi
     - /tmp/qd/quarkdown/bin/quarkdown c docs/main.qd -o build/docs --clean
     - chmod +x ./gradlew && ./gradlew dokkaGenerate --console=plain
     - rm -rf public && mv build/docs/Karbone public && cp -r build/dokka/html public/api
