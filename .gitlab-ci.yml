@@ -56,6 +56,7 @@ pages:
   stage: deploy
   variables:
     QUARKDOWN_VERSION: "2.6.0"
+    GIT_DEPTH: 0 # tags are needed to stamp the docs with the latest release
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
@@ -63,6 +64,7 @@ pages:
     - curl -fsSL -o /tmp/quarkdown.zip "https://github.com/iamgio/quarkdown/releases/download/v${QUARKDOWN_VERSION}/quarkdown-linux-x64.zip"
     - unzip -q /tmp/quarkdown.zip -d /tmp/qd
   script:
+    - VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); [ -n "$VERSION" ] && echo ".var {karboneversion} {$VERSION}" > docs/_version.qd
     - /tmp/qd/quarkdown/bin/quarkdown c docs/main.qd -o build/docs --clean
     - chmod +x ./gradlew && ./gradlew dokkaGenerate --console=plain
     - rm -rf public && mv build/docs/Karbone public && cp -r build/dokka/html public/api
