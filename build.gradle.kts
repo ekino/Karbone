@@ -17,10 +17,7 @@ group = "com.ekino.oss"
 version =
   System.getenv("GITHUB_REF_NAME")
     ?.takeIf { System.getenv("GITHUB_ACTIONS") != null && it.startsWith("v") }
-    ?.removePrefix("v")
-    ?: System.getenv("CI_COMMIT_TAG")?.takeIf { it.startsWith("v") }?.removePrefix("v")
-    ?: project.findProperty("localVersion") as String?
-    ?: "0.1.0-SNAPSHOT"
+    ?.removePrefix("v") ?: project.findProperty("localVersion") as String? ?: "0.1.0-SNAPSHOT"
 
 repositories { mavenCentral() }
 
@@ -163,47 +160,4 @@ mavenPublishing {
       url.set("https://github.com/ekino/Karbone")
     }
   }
-}
-
-// Internal review: publish to the GitLab Package Registry of the project running the pipeline
-// (Job-Token auth).
-val gitlabApiUrl = System.getenv("CI_API_V4_URL")
-val gitlabProjectId = System.getenv("CI_PROJECT_ID")
-
-if (gitlabApiUrl != null && gitlabProjectId != null) {
-  publishing {
-    repositories {
-      maven {
-        name = "GitLab"
-        url = uri("$gitlabApiUrl/projects/$gitlabProjectId/packages/maven")
-        credentials(HttpHeaderCredentials::class) {
-          name = "Job-Token"
-          value = System.getenv("CI_JOB_TOKEN")
-        }
-        authentication { create<HttpHeaderAuthentication>("header") }
-      }
-    }
-  }
-}
-
-// API reference (KDoc → HTML), published under /api/ of the documentation site.
-dokka {
-  moduleName.set("Karbone")
-  dokkaSourceSets.main {
-    includes.from("docs/api-module.md")
-    sourceLink {
-      localDirectory.set(file("src/main/kotlin"))
-      remoteUrl("https://github.com/ekino/Karbone/tree/main/src/main/kotlin")
-      remoteLineSuffix.set("#L")
-    }
-    perPackageOption {
-      matchingRegex.set(""".*\.internal.*""")
-      suppress.set(true)
-    }
-    externalDocumentationLinks.register("arrow") {
-      url("https://apidocs.arrow-kt.io/")
-      packageListUrl("https://apidocs.arrow-kt.io/package-list")
-    }
-  }
-  dokkaPublications.html { outputDirectory.set(layout.buildDirectory.dir("dokka/html")) }
 }
