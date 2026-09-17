@@ -2,10 +2,13 @@
 
 # Karbone
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.ekino.oss/karbone?label=Maven%20Central)](https://central.sonatype.com/artifact/com.ekino.oss/karbone)
-[![Build](https://github.com/ekino/Karbone/actions/workflows/build.yml/badge.svg)](https://github.com/ekino/Karbone/actions/workflows/build.yml)
+[![Build and Test](https://github.com/ekino/Karbone/actions/workflows/build.yml/badge.svg)](https://github.com/ekino/Karbone/actions/workflows/build.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/com.ekino.oss/karbone?label=maven-central)](https://central.sonatype.com/artifact/com.ekino.oss/karbone)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+[![Java 21](https://img.shields.io/badge/Java-21-orange)](https://openjdk.java.net/projects/jdk/21/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-purple)](https://kotlinlang.org/)
+[![Carbone API](https://img.shields.io/badge/Carbone%20API-v5-1c1b1a)](https://carbone.io/api-reference.html)
 [![Documentation](https://img.shields.io/badge/docs-ekino.github.io%2FKarbone-0e0e0e)](https://ekino.github.io/Karbone/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
 A modern Kotlin SDK for the [Carbone.io](https://carbone.io/) document generation API.
 
