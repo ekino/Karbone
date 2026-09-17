@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0 # tags are needed to stamp the docs with the latest release
 
       - name: Set up Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: "corretto"
           java-version: "21"
