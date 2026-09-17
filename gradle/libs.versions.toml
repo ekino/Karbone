@@ -11,7 +11,7 @@ kotlinx-coroutines = "1.10.2"
 dokka = "2.2.0"
 
 # Code Quality
-spotless = "8.9.0"
+spotless = "8.10.2"
 detekt = "2.0.0-alpha.6"
 
 # Publishing
