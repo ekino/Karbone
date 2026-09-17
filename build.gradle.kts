@@ -10,33 +10,17 @@ plugins {
 
 group = "com.ekino.oss"
 
+// Release builds take their version from the v* tag (v1.2.3 -> 1.2.3); everything else uses the
+// localVersion snapshot
+// from gradle.properties, on CI as well as locally, so snapshots are named predictably
+// (0.1.5-SNAPSHOT, not <sha>-SNAPSHOT).
 version =
-  when {
-    // CI environment - GitHub Actions
-    System.getenv("GITHUB_ACTIONS") != null -> {
-      // Tag-based releases: only v* tags (v1.0.0 -> 1.0.0)
-      val tag = System.getenv("GITHUB_REF_NAME")?.takeIf { it.startsWith("v") }
-      tag?.removePrefix("v")
-        ?: runCatching {
-            val gitDescribe =
-              providers
-                .exec {
-                  commandLine("git", "describe", "--tags", "--always", "--dirty", "--abbrev=7")
-                }
-                .standardOutput
-                .asText
-                .get()
-                .trim()
-            "${gitDescribe.removePrefix("v")}-SNAPSHOT"
-          }
-          .getOrElse {
-            val sha = System.getenv("GITHUB_SHA") ?: "unknown"
-            "${sha.take(7)}-SNAPSHOT"
-          }
-    }
-    // Local development - ALWAYS use localVersion from gradle.properties
-    else -> project.findProperty("localVersion") as String? ?: "0.1.0-SNAPSHOT"
-  }
+  System.getenv("GITHUB_REF_NAME")
+    ?.takeIf { System.getenv("GITHUB_ACTIONS") != null && it.startsWith("v") }
+    ?.removePrefix("v")
+    ?: System.getenv("CI_COMMIT_TAG")?.takeIf { it.startsWith("v") }?.removePrefix("v")
+    ?: project.findProperty("localVersion") as String?
+    ?: "0.1.0-SNAPSHOT"
 
 repositories { mavenCentral() }
 

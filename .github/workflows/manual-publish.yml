@@ -37,11 +37,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Calculate snapshot version
+      - name: Read snapshot version
         id: version
-        run: |
-          VERSION=$(git describe --tags --always --dirty --abbrev=7)
-          echo "snapshot_version=${VERSION#v}-SNAPSHOT" >> $GITHUB_OUTPUT
+        run: echo "snapshot_version=$(grep '^localVersion=' gradle.properties | cut -d= -f2)" >> $GITHUB_OUTPUT
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
