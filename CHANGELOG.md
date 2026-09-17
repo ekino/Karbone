@@ -2,7 +2,12 @@
 
 All notable changes to Karbone are documented here. Detailed notes for each release live in `release-notes/`.
 
-## Unreleased (0.1.5)
+## 0.2.0 — 2026-09-17
+
+First public release on GitHub and Maven Central. Versions 0.1.x were internal review builds published to ekino's GitLab registry only.
+
+- Snapshots are named from `localVersion` on CI as well (no more `<sha>-SNAPSHOT`).
+- Dependabot leaves kotlinx-coroutines and kotlinx-serialization alone (Spring Boot BOM alignment).
 
 - Wire layer decodes Carbone responses through typed internal DTOs (`kotlinx.serialization`) instead of reading JSON fields one by one; an
   unparsable 2xx body now yields `KarboneError.Serialization` instead of an exception. No public API change.

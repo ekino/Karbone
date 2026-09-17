@@ -7,7 +7,7 @@ Add the dependency to your Gradle build:
 
 ```kotlin
 dependencies {
-    implementation("com.ekino.oss:karbone:<version>")
+    implementation("com.ekino.oss:karbone:0.2.0")
 }
 ```
 

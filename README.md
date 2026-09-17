@@ -6,13 +6,13 @@ A modern Kotlin SDK for the [Carbone.io](https://carbone.io/) document generatio
 
 Karbone aims to replace the official [carbone-sdk-java](https://github.com/carboneio/carbone-sdk-java), which is incomplete and no longer keeps up with the Carbone API, with an idiomatic, fully typed Kotlin client.
 
-> Status: early development. The API is not stable yet.
+> Status: early public release (0.x). The API may still change between minor versions.
 
 ## Installation
 
 ```kotlin
 dependencies {
-    implementation("com.ekino.oss:karbone:<version>")
+    implementation("com.ekino.oss:karbone:0.2.0")
 }
 ```
 
