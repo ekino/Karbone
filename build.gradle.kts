@@ -128,8 +128,8 @@ mavenPublishing {
   )
 
   publishToMavenCentral(automaticRelease = true)
-  // Signing keys are only available in the GitHub release workflow; GitLab (internal review)
-  // publishes unsigned.
+  // Signing keys are only available in the GitHub release workflows; publishToMavenLocal stays
+  // unsigned.
   if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
 
   pom {

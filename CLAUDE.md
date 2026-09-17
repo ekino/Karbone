@@ -16,7 +16,7 @@ tooling, look there first.
 - Kotlin 2.4.20, JVM toolchain 21 (foojay resolver), Gradle 9.7.1 via wrapper. Always use `./gradlew`.
 - Single Gradle module (root project). Dependency versions live in `gradle/libs.versions.toml`; never hardcode versions in
   `build.gradle.kts`.
-- Version: `v*` tag on CI (GitHub `GITHUB_REF_NAME` or GitLab `CI_COMMIT_TAG`) → `x.y.z`; otherwise `localVersion` from `gradle.properties`
+- Version: `v*` tag in GitHub Actions (`GITHUB_REF_NAME`) → `x.y.z`; otherwise `localVersion` from `gradle.properties`
   (a `-SNAPSHOT`), locally and on CI alike.
 
 ## Code quality (enforced by `check`)
