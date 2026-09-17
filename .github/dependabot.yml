@@ -14,7 +14,8 @@ updates:
     groups:
       kotlin:
         patterns:
-          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlin:*"
+          - "org.jetbrains.kotlin.*"
         update-types:
           - "minor"
           - "patch"
@@ -33,6 +34,10 @@ updates:
         patterns:
           - "com.vanniktech.maven.publish*"
     ignore:
+      # Aligned on the versions managed by the Spring Boot BOM (see docs/configuration.qd, "Spring Boot compatibility"):
+      # bumped by hand only when Spring Boot moves. A newer coroutines line breaks runBlocking under the BOM (NoSuchMethodError).
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-coroutines-*"
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-serialization-*"
       # Major updates need manual review and testing
       - dependency-name: "org.jetbrains.kotlin:*"
         update-types: ["version-update:semver-major"]
