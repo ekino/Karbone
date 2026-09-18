@@ -99,8 +99,8 @@ point), one `.qd` per page starting with `.docname {..}` then `.include {docs}`.
 (`![x](@/karbone-mark.svg)`, `[home](@/index.html)`): Quarkdown then resolves `./` vs `../` per subpage; raw `.html` blocks get no path
 resolution. Never link `main.qd`: it creates a `main/` subpage duplicating the home. Quarkdown has no favicon option; `_setup.qd` inlines
 the SVG favicon as a data URI through `.html`, and puts the brand mark, name and version in `.pagemargin {topleft}`. The version comes
-from `docs/_version.qd` (`.var {karboneversion} {x.y.z}`): CI regenerates it from the latest `v*` tag; update the committed value in
-every release commit so local builds match. Output lands in `build/docs/Karbone`
+from `docs/_version.qd` (`.var {karboneversion} {x.y.z}`): CI regenerates it from the latest `v*` tag and passes the same value to Dokka (`-PlocalVersion`), so the API reference header
+matches; update the committed value in every release commit so local builds match. Output lands in `build/docs/Karbone`
 (directory named after `.docname`), deployed to GitHub Pages by `deploy-docs.yml` on pushes to `main`. Quarkdown is not a Gradle task;
 install it locally (`brew install quarkdown-labs/quarkdown/quarkdown`) and run:
 

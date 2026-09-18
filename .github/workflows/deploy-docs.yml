@@ -47,13 +47,17 @@ jobs:
       - name: Stamp the docs with the latest release
         run: |
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
-          [ -n "$VERSION" ] && echo ".var {karboneversion} {$VERSION}" > docs/_version.qd || true
+          if [ -n "$VERSION" ]; then
+            echo ".var {karboneversion} {$VERSION}" > docs/_version.qd
+            echo "DOCS_VERSION=$VERSION" >> $GITHUB_ENV
+          fi
 
       - name: Build site with Quarkdown
         run: quarkdown c docs/main.qd -o build/docs --clean
 
       - name: Build API reference with Dokka
-        run: ./gradlew dokkaGenerate --console=plain && cp -r build/dokka/html build/docs/Karbone/api
+        # Same version as the site header: the latest tag, not the main snapshot
+        run: ./gradlew dokkaGenerate ${DOCS_VERSION:+-PlocalVersion=$DOCS_VERSION} --console=plain && cp -r build/dokka/html build/docs/Karbone/api
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
