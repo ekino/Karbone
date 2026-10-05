@@ -67,10 +67,10 @@ public class FakeKarbone(
       @JvmField
       public val Default: Renderer = Renderer { request ->
         buildJsonObject {
-            put("templateId", request.templateId.value)
-            put("data", request.data ?: JsonNull)
-            put("convertTo", request.options.convertTo?.formatName ?: "none")
-          }
+          put("templateId", request.templateId.value)
+          put("data", request.data ?: JsonNull)
+          put("convertTo", request.options.convertTo?.formatName ?: "none")
+        }
           .toString()
           .toByteArray()
       }

@@ -59,20 +59,20 @@ class CarboneCloudSpec :
         either {
           karbone.templates.delete(template.sha256())
         } // ignore the result: forces the upload path if it was known
-        val doc =
-          either { karbone.renders.render(template, data, RenderOptions.pdf(PdfVersion.PDF_A_3)) }
-            .orFail()
+        val doc = either {
+          karbone.renders.render(template, data, RenderOptions.pdf(PdfVersion.PDF_A_3))
+        }
+          .orFail()
         doc.contentType.shouldNotBeNull() shouldStartWith "application/pdf"
         doc.content.copyOf(5).toString(Charsets.ISO_8859_1) shouldBe "%PDF-"
         doc.content.toString(Charsets.ISO_8859_1).contains("pdfaid:part>3<") shouldBe true
       }
 
       should("render in two steps and download once") {
-        val renderId =
-          either {
-              karbone.renders.start(template, data, RenderOptions.convertTo(OutputFormat.PDF))
-            }
-            .orFail()
+        val renderId = either {
+          karbone.renders.start(template, data, RenderOptions.convertTo(OutputFormat.PDF))
+        }
+          .orFail()
         either { karbone.renders.download(renderId) }
           .orFail()
           .content
@@ -86,35 +86,35 @@ class CarboneCloudSpec :
       }
 
       should("upload with versioning, list, patch metadata, then delete") {
-        val uploaded =
-          either {
-              karbone.templates.upload(
-                template,
-                UploadOptions(
-                  versioning = true,
-                  name = "karbone-it",
-                  category = "karbone",
-                  tags = listOf("it"),
-                ),
-              )
-            }
-            .orFail()
+        val uploaded = either {
+          karbone.templates.upload(
+            template,
+            UploadOptions(
+              versioning = true,
+              name = "karbone-it",
+              category = "karbone",
+              tags = listOf("it"),
+            ),
+          )
+        }
+          .orFail()
         val versioned = uploaded.shouldBeInstanceOf<UploadedTemplate.Versioned>()
         // In versioned mode versionId is not the plain SHA-256 of the file (metadata is part of the
         // hash).
 
-        val listed =
-          either { karbone.templates.list(ListTemplatesQuery(category = "karbone")) }.orFail()
+        val listed = either {
+          karbone.templates.list(ListTemplatesQuery(category = "karbone"))
+        }
+          .orFail()
         listed.items.map { it.id } shouldContain versioned.id
 
-        val patched =
-          either {
-              karbone.templates.update(
-                versioned.id,
-                TemplatePatch(name = "karbone-it-renamed", tags = listOf("it", "renamed")),
-              )
-            }
-            .orFail()
+        val patched = either {
+          karbone.templates.update(
+            versioned.id,
+            TemplatePatch(name = "karbone-it-renamed", tags = listOf("it", "renamed")),
+          )
+        }
+          .orFail()
         patched.name shouldBe "karbone-it-renamed"
 
         either { karbone.templates.categories() }.orFail() shouldContain "karbone"
@@ -122,15 +122,14 @@ class CarboneCloudSpec :
           .orFail()
           .map { it.id } shouldContain versioned.id
 
-        val rendered =
-          either {
-              karbone.renders.render(
-                TemplateSource.id(versioned.id),
-                data,
-                RenderOptions.pdf(PdfVersion.PDF_A_3),
-              )
-            }
-            .orFail()
+        val rendered = either {
+          karbone.renders.render(
+            TemplateSource.id(versioned.id),
+            data,
+            RenderOptions.pdf(PdfVersion.PDF_A_3),
+          )
+        }
+          .orFail()
         rendered.content.copyOf(5).toString(Charsets.ISO_8859_1) shouldBe "%PDF-"
 
         either { karbone.templates.delete(versioned.id) }.orFail()

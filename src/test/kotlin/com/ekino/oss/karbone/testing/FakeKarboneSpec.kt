@@ -85,10 +85,11 @@ class FakeKarboneSpec :
     should("support start/download once and list with pagination") {
       val fake = FakeKarbone()
       val id = fake.addTemplate(content)
-      val renderId =
-        either { fake.renders.start(TemplateSource.id(id), RenderData.Empty) }
-          .shouldBeInstanceOf<Either.Right<RenderId>>()
-          .value
+      val renderId = either {
+        fake.renders.start(TemplateSource.id(id), RenderData.Empty)
+      }
+        .shouldBeInstanceOf<Either.Right<RenderId>>()
+        .value
       either { fake.renders.download(renderId) }.shouldBeInstanceOf<Either.Right<*>>()
       either { fake.renders.download(renderId) }
         .shouldBeInstanceOf<Either.Left<KarboneError>>()
@@ -96,10 +97,11 @@ class FakeKarboneSpec :
         .shouldBeInstanceOf<KarboneError.RenderNotFound>()
 
       fake.addTemplate("second".toByteArray(), UploadOptions(category = "invoices"))
-      val page =
-        either { fake.templates.list(ListTemplatesQuery(limit = 1)) }
-          .shouldBeInstanceOf<Either.Right<Page<*>>>()
-          .value
+      val page = either {
+        fake.templates.list(ListTemplatesQuery(limit = 1))
+      }
+        .shouldBeInstanceOf<Either.Right<Page<*>>>()
+        .value
       page.items shouldHaveSize 1
       page.hasMore shouldBe true
       either { fake.templates.listAll().toList() }
