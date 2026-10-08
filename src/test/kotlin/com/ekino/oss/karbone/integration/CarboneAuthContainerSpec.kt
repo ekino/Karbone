@@ -29,8 +29,10 @@ import org.testcontainers.containers.wait.strategy.Wait
  */
 class CarboneAuthContainerSpec :
   ShouldSpec({
-    val dockerAvailable =
-      runCatching { DockerClientFactory.instance().isDockerAvailable }.getOrDefault(false)
+    val dockerAvailable = runCatching {
+      DockerClientFactory.instance().isDockerAvailable
+    }
+      .getOrDefault(false)
     val publicKey = resource("/auth/carbone-test.pub").replace("\n", "\\n")
     val token = resource("/auth/carbone-test.jwt").trim()
 

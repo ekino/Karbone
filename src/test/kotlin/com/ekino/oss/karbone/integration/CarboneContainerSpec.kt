@@ -34,8 +34,10 @@ import org.testcontainers.containers.wait.strategy.Wait
  */
 class CarboneContainerSpec :
   ShouldSpec({
-    val dockerAvailable =
-      runCatching { DockerClientFactory.instance().isDockerAvailable }.getOrDefault(false)
+    val dockerAvailable = runCatching {
+      DockerClientFactory.instance().isDockerAvailable
+    }
+      .getOrDefault(false)
 
     val container =
       GenericContainer(IMAGE)
@@ -100,15 +102,14 @@ class CarboneContainerSpec :
 
       should("render a known remote template in two steps") {
         val id = either { karbone.templates.upload(template) }.orFail().id
-        val renderId =
-          either {
-              karbone.renders.start(
-                TemplateSource.id(id),
-                data,
-                RenderOptions.convertTo(OutputFormat.DOCX),
-              )
-            }
-            .orFail()
+        val renderId = either {
+          karbone.renders.start(
+            TemplateSource.id(id),
+            data,
+            RenderOptions.convertTo(OutputFormat.DOCX),
+          )
+        }
+          .orFail()
         val doc = either { karbone.renders.download(renderId) }.orFail()
         doc.content.copyOf(2).toString(Charsets.ISO_8859_1) shouldBe "PK"
       }
