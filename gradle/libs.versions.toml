@@ -1,6 +1,6 @@
 [versions]
 # Kotlin and JVM
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 # Runtime
 arrow = "2.2.3"
 kotlinx-serialization = "1.11.0"
