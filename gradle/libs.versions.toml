@@ -20,7 +20,7 @@ gradle-maven-publish-plugin = "0.37.0"
 # Testing
 mockk = "1.14.11"
 testcontainers = "2.0.5"
-kotest = "6.2.5"
+kotest = "6.2.6"
 
 # Logging
 kotlin-logging = "8.0.4"
