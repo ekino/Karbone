@@ -2,7 +2,7 @@
 # Kotlin and JVM
 kotlin = "2.4.20"
 # Runtime
-arrow = "2.2.3"
+arrow = "2.3.0.1"
 kotlinx-serialization = "1.11.0"
 # Kept at the version managed by Spring Boot 4.x: Karbone must not reference newer coroutines symbols (see docs/configuration.qd).
 kotlinx-coroutines = "1.10.2"
